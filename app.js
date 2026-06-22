@@ -1,48 +1,81 @@
 /* ============================================
    考试核心逻辑 — 一题一页 + 翻页动效版
+   含登录验证 & 成绩排行榜 & 烟花彩蛋
    ============================================ */
 
 // ====== 全局状态 ======
-const TOTAL_TIME = 90 * 60; // 90 分钟
+const TOTAL_TIME = 120 * 60; // 120 分钟 (2 小时)
 const EXAM_CONFIG = {
-  ai_danxuan:    { count:20, score:1, label:'AI 单选题',   icon:'🧠', shortLabel:'AI通识' },
-  c_danxuan:     { count:15, score:2, label:'C 单选题',    icon:'📝', shortLabel:'C单选'  },
-  c_tiankong:    { count:15, score:2, label:'C 填空题',    icon:'✍️', shortLabel:'C填空'  },
-  c_prog_read:   { count:5,  score:2, label:'程序阅读题',  icon:'🔍', shortLabel:'阅读'   },
-  c_prog_fill:   { count:5,  score:2, label:'程序补全题',  icon:'🔧', shortLabel:'补全'   },
+  ai_danxuan:    { count:10, score:1, label:'AI 单选题',   icon:'🧠', shortLabel:'AI选择'  },
+  ai_tiankong:   { count:10, score:1, label:'AI 填空题',   icon:'💬', shortLabel:'AI填空'  },
+  c_danxuan:     { count:15, score:2, label:'C 单选题',    icon:'📝', shortLabel:'C单选'   },
+  c_tiankong:    { count:15, score:2, label:'C 填空题',    icon:'✍️', shortLabel:'C填空'   },
+  c_prog_read:   { count:5,  score:2, label:'程序阅读题',  icon:'🔍', shortLabel:'阅读'    },
+  c_prog_fill:   { count:5,  score:2, label:'程序补全题',  icon:'🔧', shortLabel:'补全'    },
 };
+
+// 当前考生信息
+let currentStudent = { name: '', stuid: '' };
 
 let examState = {
   questions: [],       // [{type, globalIdx, data, score}]
   answers: {},         // {globalIdx: answer}
-  currentPage: 0,      // 当前题目索引 0~59
+  currentPage: 0,      // 当前题目索引 0~60
   timeLeft: TOTAL_TIME,
   timerInterval: null,
   submitted: false,
-  animating: false     // 翻页动画进行中
+  animating: false
 };
 
-// ====== Fisher-Yates 洗牌 ======
-function shuffle(arr) {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
+// ====== 本地存储 — 成绩记录 ======
+function getScoreHistory() {
+  try {
+    const raw = localStorage.getItem('exam_score_history');
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    return [];
   }
-  return a;
 }
 
-function pickRandom(arr, n) {
-  return shuffle(arr).slice(0, Math.min(n, arr.length));
+function saveScoreRecord(record) {
+  const history = getScoreHistory();
+  history.push(record);
+  localStorage.setItem('exam_score_history', JSON.stringify(history));
 }
+
+// ====== 登录验证 ======
+function confirmLogin() {
+  const nameInput = document.getElementById('input-name');
+  const stuidInput = document.getElementById('input-stuid');
+  const errorEl = document.getElementById('login-error');
+
+  const name = nameInput.value.trim();
+  const stuid = stuidInput.value.trim();
+
+  if (!name) { errorEl.textContent = '请输入姓名'; nameInput.focus(); return; }
+  if (!stuid) { errorEl.textContent = '请输入学号'; stuidInput.focus(); return; }
+
+  errorEl.textContent = '';
+  currentStudent = { name, stuid };
+  switchScreen('home-screen');
+}
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' && document.getElementById('login-screen').classList.contains('active')) {
+    e.preventDefault(); confirmLogin();
+  }
+});
+
+// ====== Fisher-Yates 洗牌 ======
+function shuffle(arr) { const a = [...arr]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+function pickRandom(arr, n) { return shuffle(arr).slice(0, Math.min(n, arr.length)); }
 
 // ====== 切换屏幕 ======
 function switchScreen(showId) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   const el = document.getElementById(showId);
   el.classList.add('active');
-  el.style.animation = 'none';
-  el.offsetHeight;
+  el.style.animation = 'none'; el.offsetHeight;
   el.style.animation = 'fadeScaleIn 0.4s ease';
 }
 
@@ -51,9 +84,39 @@ function startExam() {
   const qs = [];
   let idx = 0;
 
-  pickRandom(window.AI_QUESTIONS, EXAM_CONFIG.ai_danxuan.count).forEach(q => {
+  // 打乱所有 AI 题目，选 20 道
+  const shuffledAI = shuffle(window.AI_QUESTIONS);
+  const aiAll = shuffledAI.slice(0, EXAM_CONFIG.ai_danxuan.count + EXAM_CONFIG.ai_tiankong.count);
+
+  // AI 选择题：前面10道
+  aiAll.slice(0, EXAM_CONFIG.ai_danxuan.count).forEach(q => {
     qs.push({ type:'ai_danxuan', globalIdx:idx++, data:q, score:EXAM_CONFIG.ai_danxuan.score });
   });
+
+  // AI 填空题：后面10道 — 从选择题转换
+  aiAll.slice(EXAM_CONFIG.ai_danxuan.count).forEach(q => {
+    // 生成可接受答案列表：字母 + 选项文本
+    const correctLetter = q.answer.toUpperCase();
+    const acceptable = [correctLetter];
+    if (q.options && q.options[correctLetter]) {
+      acceptable.push(q.options[correctLetter]);
+    }
+    const fillQ = {
+      ...q,
+      acceptable_answers: acceptable,
+      // 填空展示用：用____替换答案词
+      blank_question: q.question.replace(
+        new RegExp(escapeRegex(q.options[correctLetter] || ''), 'g'),
+        '______'
+      )
+    };
+    // 如果替换没生效，用原始题目
+    if (fillQ.blank_question === q.question) {
+      fillQ.blank_question = q.question;
+    }
+    qs.push({ type:'ai_tiankong', globalIdx:idx++, data:fillQ, score:EXAM_CONFIG.ai_tiankong.score });
+  });
+
   pickRandom(window.C_QUESTIONS.danxuan, EXAM_CONFIG.c_danxuan.count).forEach(q => {
     qs.push({ type:'c_danxuan', globalIdx:idx++, data:q, score:EXAM_CONFIG.c_danxuan.score });
   });
@@ -68,21 +131,14 @@ function startExam() {
   });
 
   examState = {
-    questions: qs,
-    answers: {},
-    currentPage: 0,
-    timeLeft: TOTAL_TIME,
-    timerInterval: null,
-    submitted: false,
-    animating: false
+    questions: qs, answers: {}, currentPage: 0,
+    timeLeft: TOTAL_TIME, timerInterval: null,
+    submitted: false, animating: false
   };
 
   qs.forEach(q => {
-    if (q.type === 'c_prog_fill') {
-      examState.answers[q.globalIdx] = {};
-    } else {
-      examState.answers[q.globalIdx] = '';
-    }
+    if (q.type === 'c_prog_fill') { examState.answers[q.globalIdx] = {}; }
+    else { examState.answers[q.globalIdx] = ''; }
   });
 
   document.getElementById('progress-total').textContent = qs.length;
@@ -92,17 +148,17 @@ function startExam() {
   startTimer();
 }
 
+function escapeRegex(str) {
+  return String(str || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 // ====== 渲染底部导航 ======
 function renderPageFooter() {
-  // 题型快捷跳转
   const typeTabs = document.getElementById('page-type-tabs');
   if (!typeTabs) return;
-  const types = ['ai_danxuan', 'c_danxuan', 'c_tiankong', 'c_prog_read', 'c_prog_fill'];
+  const types = ['ai_danxuan', 'ai_tiankong', 'c_danxuan', 'c_tiankong', 'c_prog_read', 'c_prog_fill'];
   const startIndices = {};
-  types.forEach(t => {
-    const first = examState.questions.findIndex(q => q.type === t);
-    startIndices[t] = first >= 0 ? first : 0;
-  });
+  types.forEach(t => { const first = examState.questions.findIndex(q => q.type === t); startIndices[t] = first >= 0 ? first : 0; });
 
   typeTabs.innerHTML = types.map(t => {
     const cfg = EXAM_CONFIG[t];
@@ -110,12 +166,10 @@ function renderPageFooter() {
     return `<button class="type-tab" data-type="${t}" onclick="jumpToType('${t}', ${first})">${cfg.icon} ${cfg.shortLabel}</button>`;
   }).join('');
 
-  // 页码点
   const dotsEl = document.getElementById('page-dots');
   dotsEl.innerHTML = examState.questions.map((q, i) =>
     `<span class="page-dot" data-page="${i}" onclick="jumpToQuestion(${i})" title="第${i+1}题"></span>`
   ).join('');
-
   updatePageIndicator();
 }
 
@@ -124,21 +178,17 @@ function updatePageIndicator() {
   const p = examState.currentPage;
   document.getElementById('progress-current').textContent = p + 1;
 
-  // Type tabs
   document.querySelectorAll('.type-tab').forEach(tab => {
-    const targetPage = parseInt(tab.getAttribute('onclick').match(/\d+/)?.[0]) || 0;
     const type = tab.dataset.type;
     const currType = examState.questions[p]?.type;
     tab.classList.toggle('current', type === currType);
   });
 
-  // Page dots
   document.querySelectorAll('.page-dot').forEach((dot, i) => {
     dot.classList.toggle('current', i === p);
     dot.classList.toggle('answered', isQuestionAnswered(i));
   });
 
-  // Arrows
   document.getElementById('btn-prev').disabled = p <= 0;
   document.getElementById('btn-next').disabled = p >= examState.questions.length - 1;
 }
@@ -147,21 +197,14 @@ function updatePageIndicator() {
 function renderCurrentQuestion() {
   const p = examState.currentPage;
   if (p < 0 || p >= examState.questions.length) return;
-
   const q = examState.questions[p];
   const card = document.getElementById('qcard-current');
-
-  // 恢复答案
-  restoreAnswers();
-
   card.innerHTML = renderQuestionContent(q);
   card.className = 'question-card page-card';
-
-  // 绑定事件
   bindQuestionEvents(q);
 }
 
-// ====== 渲染题目内容（不含卡片外层） ======
+// ====== 渲染题目内容 ======
 function renderQuestionContent(q) {
   const cfg = EXAM_CONFIG[q.type];
   const qid = q.globalIdx;
@@ -185,12 +228,20 @@ function renderQuestionContent(q) {
           const checked = saved === opt ? ' checked' : '';
           bodyHtml += `<label class="opt-label">
             <input type="radio" name="q${qid}" value="${opt}"${checked}>
-            <span class="opt-letter">${opt}</span>
-            <span>${escapeHtml(qdata.options[opt])}</span>
+            <span class="opt-letter">${opt}</span><span>${escapeHtml(qdata.options[opt])}</span>
           </label>`;
         }
       });
       bodyHtml += '</div>';
+      break;
+    }
+    case 'ai_tiankong': {
+      const val = escapeAttr(examState.answers[qid] || '');
+      const displayQ = qdata.blank_question || qdata.question;
+      bodyHtml = `<div class="q-body">${escapeHtml(displayQ)}</div>
+        <div class="q-hint">💡 提示：请填写正确答案的关键词或选项字母</div>
+        <input type="text" class="fill-input" data-qid="${qid}"
+          placeholder="请输入答案..." autocomplete="off" value="${val}">`;
       break;
     }
     case 'c_tiankong': {
@@ -213,11 +264,10 @@ function renderQuestionContent(q) {
         qdata.blanks.forEach((b, bi) => {
           const savedAns = examState.answers[qid] || {};
           const val = escapeAttr(savedAns[bi] || '');
-          bodyHtml += `<div style="margin-top:12px;">
-            <span style="font-size:0.85rem;color:var(--text-dim);">填空 ${bi+1}：</span>
-            <input type="text" class="fill-input" data-qid="${qid}" data-blank="${bi}"
-              placeholder="请输入代码..." autocomplete="off" value="${val}"
-              style="display:inline-block;width:calc(100% - 58px);margin-left:8px;margin-top:0;">
+          bodyHtml += `<div class="fill-block">
+            <span class="fill-block-label">填空 ${bi+1}</span>
+            <textarea class="code-fill-input" data-qid="${qid}" data-blank="${bi}"
+              placeholder="请输入代码片段..." autocomplete="off" rows="2">${val}</textarea>
           </div>`;
         });
       }
@@ -240,7 +290,7 @@ function bindQuestionEvents(q) {
     });
   });
 
-  card.querySelectorAll('input[type="text"]').forEach(input => {
+  card.querySelectorAll('input[type="text"], textarea').forEach(input => {
     input.addEventListener('input', function() {
       const blankPos = this.dataset.blank;
       if (blankPos !== undefined) {
@@ -254,19 +304,13 @@ function bindQuestionEvents(q) {
   });
 }
 
-// ====== 保存当前答案（翻页前） ======
+// ====== 保存当前答案 ======
 function saveCurrentAnswers() {
   const card = document.getElementById('qcard-current');
   if (!card) return;
-
-  // Radio
   const checked = card.querySelector('input[type="radio"]:checked');
-  if (checked) {
-    examState.answers[parseInt(checked.name.replace('q',''))] = checked.value;
-  }
-
-  // Text inputs
-  card.querySelectorAll('input[type="text"]').forEach(inp => {
+  if (checked) { examState.answers[parseInt(checked.name.replace('q',''))] = checked.value; }
+  card.querySelectorAll('input[type="text"], textarea').forEach(inp => {
     const qid = parseInt(inp.dataset.qid);
     const blankPos = inp.dataset.blank;
     if (blankPos !== undefined) {
@@ -278,100 +322,60 @@ function saveCurrentAnswers() {
   });
 }
 
-// ====== 翻页：前进 ======
+// ====== 翻页动画 ======
 function nextQuestion() {
   if (examState.animating) return;
   if (examState.currentPage >= examState.questions.length - 1) return;
-
-  examState.animating = true;
-  saveCurrentAnswers();
-
-  const dir = 1; // forward
+  examState.animating = true; saveCurrentAnswers();
   const card = document.getElementById('qcard-current');
   card.classList.add('slide-out-left');
-
   setTimeout(() => {
     card.classList.remove('slide-out-left');
     examState.currentPage++;
-    renderCurrentQuestion();
-    updatePageIndicator();
-
+    renderCurrentQuestion(); updatePageIndicator();
     const newCard = document.getElementById('qcard-current');
     newCard.classList.add('slide-in-right');
-    setTimeout(() => {
-      newCard.classList.remove('slide-in-right');
-      examState.animating = false;
-    }, 350);
+    setTimeout(() => { newCard.classList.remove('slide-in-right'); examState.animating = false; }, 350);
   }, 280);
 }
 
-// ====== 翻页：后退 ======
 function prevQuestion() {
   if (examState.animating) return;
   if (examState.currentPage <= 0) return;
-
-  examState.animating = true;
-  saveCurrentAnswers();
-
+  examState.animating = true; saveCurrentAnswers();
   const card = document.getElementById('qcard-current');
   card.classList.add('slide-out-right');
-
   setTimeout(() => {
     card.classList.remove('slide-out-right');
     examState.currentPage--;
-    renderCurrentQuestion();
-    updatePageIndicator();
-
+    renderCurrentQuestion(); updatePageIndicator();
     const newCard = document.getElementById('qcard-current');
     newCard.classList.add('slide-in-left');
-    setTimeout(() => {
-      newCard.classList.remove('slide-in-left');
-      examState.animating = false;
-    }, 350);
+    setTimeout(() => { newCard.classList.remove('slide-in-left'); examState.animating = false; }, 350);
   }, 280);
 }
 
-// ====== 跳转到指定题 ======
 function jumpToQuestion(targetPage) {
   if (examState.animating) return;
   if (targetPage === examState.currentPage) return;
   if (targetPage < 0 || targetPage >= examState.questions.length) return;
-
-  examState.animating = true;
-  saveCurrentAnswers();
-
+  examState.animating = true; saveCurrentAnswers();
   const dir = targetPage > examState.currentPage ? 1 : -1;
   const card = document.getElementById('qcard-current');
-
   card.classList.add(dir > 0 ? 'slide-out-left' : 'slide-out-right');
-
   setTimeout(() => {
     card.classList.remove('slide-out-left', 'slide-out-right');
     examState.currentPage = targetPage;
-    renderCurrentQuestion();
-    updatePageIndicator();
-
+    renderCurrentQuestion(); updatePageIndicator();
     const newCard = document.getElementById('qcard-current');
     newCard.classList.add(dir > 0 ? 'slide-in-right' : 'slide-in-left');
-    setTimeout(() => {
-      newCard.classList.remove('slide-in-right', 'slide-in-left');
-      examState.animating = false;
-    }, 350);
+    setTimeout(() => { newCard.classList.remove('slide-in-right', 'slide-in-left'); examState.animating = false; }, 350);
   }, 280);
 }
 
-// ====== 跳转到题型首题 ======
-function jumpToType(type, page) {
-  jumpToQuestion(page);
-}
+function jumpToType(type, page) { jumpToQuestion(page); }
 
-// ====== 恢复答案显示 ======
-function restoreAnswers() {
-  // 答案已保存在 examState.answers 中
-  // renderCurrentQuestion 会读取 answers 并设置 checked/value
-}
-
-// ====== 题目是否已答 ======
+// ====== 辅助函数 ======
 function isQuestionAnswered(idx) {
   const q = examState.questions[idx];
   if (!q) return false;
@@ -383,12 +387,9 @@ function isQuestionAnswered(idx) {
   return String(ans).trim() !== '';
 }
 
-// ====== 格式化程序题 ======
 function formatProgramQuestion(questionText, isFill) {
   const lines = questionText.split('\n');
-  let descLines = [];
-  let codeLines = [];
-  let inCode = false;
+  let descLines = [], codeLines = [], inCode = false;
 
   for (const line of lines) {
     const trimmed = line.trim();
@@ -420,13 +421,17 @@ function formatProgramQuestion(questionText, isFill) {
     html += `<div class="q-body">${escapeHtml(descLines.join('\n'))}</div>`;
   }
   if (codeLines.length > 0) {
-    html += `<div class="code-block"><pre>${highlightCode(codeLines.join('\n'), isFill)}</pre></div>`;
+    // 带行号的代码块
+    const numbered = codeLines.map((l, i) =>
+      `<span class="code-line"><span class="line-num">${i + 1}</span>${highlightCodeLine(l, isFill)}</span>`
+    ).join('\n');
+    html += `<div class="code-block"><pre>${numbered}</pre></div>`;
   }
   return html;
 }
 
-function highlightCode(code, markBlanks) {
-  let escaped = escapeHtml(code);
+function highlightCodeLine(line, markBlanks) {
+  let escaped = escapeHtml(line);
   if (markBlanks) {
     escaped = escaped.replace(/_{2,}|__________/g, '<span class="blank">______</span>');
   }
@@ -439,15 +444,8 @@ function highlightCode(code, markBlanks) {
   return escaped;
 }
 
-function escapeHtml(str) {
-  const d = document.createElement('div');
-  d.textContent = str;
-  return d.innerHTML;
-}
-
-function escapeAttr(str) {
-  return String(str).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
+function escapeHtml(str) { const d = document.createElement('div'); d.textContent = str; return d.innerHTML; }
+function escapeAttr(str) { return String(str).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 // ====== 倒计时 ======
 function startTimer() {
@@ -455,10 +453,7 @@ function startTimer() {
   examState.timerInterval = setInterval(() => {
     examState.timeLeft--;
     updateTimerDisplay();
-    if (examState.timeLeft <= 0) {
-      clearInterval(examState.timerInterval);
-      autoSubmit();
-    }
+    if (examState.timeLeft <= 0) { clearInterval(examState.timerInterval); autoSubmit(); }
   }, 1000);
 }
 
@@ -466,8 +461,7 @@ function updateTimerDisplay() {
   const t = examState.timeLeft;
   const mins = Math.floor(t / 60);
   const secs = t % 60;
-  document.getElementById('timer-text').textContent =
-    `${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`;
+  document.getElementById('timer-text').textContent = `${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`;
 
   const circle = document.getElementById('timer-circle');
   const circumference = 150.8;
@@ -475,10 +469,10 @@ function updateTimerDisplay() {
   circle.style.strokeDasharray = circumference;
   circle.style.strokeDashoffset = circumference * (1 - progress);
 
-  if (t <= 300) {
+  if (t <= 600) {
     circle.style.stroke = 'var(--red)';
     document.getElementById('timer-text').style.color = 'var(--red)';
-  } else if (t <= 600) {
+  } else if (t <= 1200) {
     circle.style.stroke = 'var(--amber)';
     document.getElementById('timer-text').style.color = 'var(--amber)';
   }
@@ -497,44 +491,27 @@ function submitExam() {
       if (ans && String(ans).trim()) answeredCount++;
     }
   });
-
   document.getElementById('confirm-info').textContent =
     `你已完成 ${answeredCount}/${totalQs} 题，确认提交吗？未作答的题目将计 0 分。`;
   document.getElementById('confirm-modal').classList.add('show');
 }
 
-function closeModal() {
-  document.getElementById('confirm-modal').classList.remove('show');
-}
-
-function confirmSubmit() {
-  closeModal();
-  clearInterval(examState.timerInterval);
-  examState.submitted = true;
-  gradeExam();
-}
-
-function autoSubmit() {
-  clearInterval(examState.timerInterval);
-  examState.submitted = true;
-  gradeExam();
-}
+function closeModal() { document.getElementById('confirm-modal').classList.remove('show'); }
+function confirmSubmit() { closeModal(); clearInterval(examState.timerInterval); examState.submitted = true; gradeExam(); }
+function autoSubmit() { clearInterval(examState.timerInterval); examState.submitted = true; gradeExam(); }
 
 // ====== 判卷 ======
 function gradeExam() {
-  const types = ['ai_danxuan', 'c_danxuan', 'c_tiankong', 'c_prog_read', 'c_prog_fill'];
+  const types = ['ai_danxuan', 'ai_tiankong', 'c_danxuan', 'c_tiankong', 'c_prog_read', 'c_prog_fill'];
   const typeScores = {};
   const typeMax = {};
   const wrongQs = [];
   let totalScore = 0;
-  let totalMax = 0;
-
   types.forEach(t => { typeScores[t] = 0; typeMax[t] = 0; });
 
   examState.questions.forEach(q => {
     const cfg = EXAM_CONFIG[q.type];
     typeMax[q.type] += cfg.score;
-
     const userAns = examState.answers[q.globalIdx];
     let isCorrect = false;
     let userDisplay = '';
@@ -550,6 +527,14 @@ function gradeExam() {
         isCorrect = ua === ca;
         break;
       }
+      case 'ai_tiankong': {
+        const ua = String(userAns || '').trim();
+        const acceptable = q.data.acceptable_answers || [q.data.answer];
+        userDisplay = ua || '未作答';
+        correctDisplay = acceptable.join(' 或 ');
+        isCorrect = acceptable.some(a => normalizeAnswer(ua) === normalizeAnswer(a));
+        break;
+      }
       case 'c_tiankong':
       case 'c_prog_read': {
         const ua = String(userAns || '').trim();
@@ -562,8 +547,7 @@ function gradeExam() {
       case 'c_prog_fill': {
         const blanks = q.data.blanks || [];
         let allCorrect = true;
-        userDisplay = [];
-        correctDisplay = [];
+        userDisplay = []; correctDisplay = [];
         blanks.forEach(b => {
           const ua = String((userAns && userAns[b.position - 1]) || '').trim();
           const acceptable = b.acceptable_answers || [b.answer];
@@ -578,10 +562,8 @@ function gradeExam() {
       }
     }
 
-    if (isCorrect) {
-      typeScores[q.type] += cfg.score;
-      totalScore += cfg.score;
-    } else {
+    if (isCorrect) { typeScores[q.type] += cfg.score; totalScore += cfg.score; }
+    else {
       wrongQs.push({
         type: q.type, typeLabel: cfg.label, globalIdx: q.globalIdx,
         question: q.data.question, options: q.data.options || null,
@@ -589,29 +571,34 @@ function gradeExam() {
         explanation: q.data.explanation || null, score: cfg.score
       });
     }
-    totalMax += cfg.score;
   });
 
   examState.typeScores = typeScores;
   examState.typeMax = typeMax;
   examState.totalScore = totalScore;
-  examState.totalMax = totalMax;
+  examState.totalMax = 60; // 计算总分: 10*1 + 10*1 + 15*2 + 15*2 + 5*2 + 5*2 = 100
   examState.wrongQs = wrongQs;
   examState.graded = true;
+
+  // 保存成绩
+  saveScoreRecord({
+    name: currentStudent.name,
+    stuid: currentStudent.stuid,
+    score: totalScore,
+    time: new Date().toISOString()
+  });
 
   showResult();
 }
 
-function normalizeAnswer(s) {
-  return String(s).replace(/\s+/g, '').toLowerCase();
-}
+function normalizeAnswer(s) { return String(s).replace(/\s+/g, '').toLowerCase(); }
 
 // ====== 显示成绩 ======
 function showResult() {
   switchScreen('result-screen');
 
   const score = examState.totalScore;
-  const percentage = examState.totalMax > 0 ? score / examState.totalMax : 0;
+  const percentage = 100 > 0 ? score / 100 : 0;
 
   let grade = '', gradeColor = '';
   if (percentage >= 0.9) { grade = '🏆 优秀'; gradeColor = 'var(--cyan)'; }
@@ -638,7 +625,7 @@ function showResult() {
 
   animateNumber('score-number', 0, score, 1500);
 
-  const types = ['ai_danxuan', 'c_danxuan', 'c_tiankong', 'c_prog_read', 'c_prog_fill'];
+  const types = ['ai_danxuan', 'ai_tiankong', 'c_danxuan', 'c_tiankong', 'c_prog_read', 'c_prog_fill'];
   document.getElementById('result-details').innerHTML = types.map(t => {
     const cfg = EXAM_CONFIG[t];
     const earned = examState.typeScores[t] || 0;
@@ -655,9 +642,7 @@ function showResult() {
   }).join('');
 
   setTimeout(() => {
-    document.querySelectorAll('.detail-bar-fill').forEach(bar => {
-      bar.style.width = bar.dataset.fill + '%';
-    });
+    document.querySelectorAll('.detail-bar-fill').forEach(bar => { bar.style.width = bar.dataset.fill + '%'; });
   }, 300);
 
   let wrongHtml = '';
@@ -679,6 +664,11 @@ function showResult() {
     });
   }
   document.getElementById('wrong-questions').innerHTML = wrongHtml;
+
+  // 彩蛋：超过90分放烟花
+  if (score > 90) {
+    setTimeout(() => launchFireworks(), 800);
+  }
 }
 
 function animateNumber(elementId, from, to, duration) {
@@ -696,21 +686,276 @@ function animateNumber(elementId, from, to, duration) {
 function restartExam() {
   clearInterval(examState.timerInterval);
   examState = { questions:[], answers:{}, currentPage:0, timeLeft:TOTAL_TIME, timerInterval:null, submitted:false, animating:false, graded:false };
+  // 清理烟花canvas
+  const fc = document.getElementById('fireworks-canvas');
+  if (fc) fc.remove();
   switchScreen('home-screen');
+}
+
+// ====== 烟花彩蛋 (Canvas) ======
+function launchFireworks() {
+  // 创建烟花canvas
+  const existing = document.getElementById('fireworks-canvas');
+  if (existing) existing.remove();
+
+  const canvas = document.createElement('canvas');
+  canvas.id = 'fireworks-canvas';
+  canvas.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;z-index:2000;pointer-events:none;';
+  document.body.appendChild(canvas);
+
+  const ctx = canvas.getContext('2d');
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+
+  const particles = [];
+  const LETTERS = ['G', 'O', 'O', 'D'];
+
+  // 定义GOOD的目标位置
+  function getGoodPositions() {
+    const positions = [];
+    const cx = canvas.width / 2;
+    const cy = canvas.height / 2;
+    const cellW = 90, cellH = 120;
+    const totalW = 4 * cellW;
+    const startX = cx - totalW / 2;
+    const startY = cy - cellH / 2;
+
+    // G 字母路径 (简化)
+    const letterPaths = {
+      'G': [
+        [0.3,0.1],[0.5,0.1],[0.7,0.1],[0.8,0.15],[0.8,0.3],[0.7,0.5],[0.5,0.5],[0.3,0.5],
+        [0.2,0.5],[0.15,0.4],[0.15,0.3],[0.15,0.7],[0.2,0.8],[0.3,0.9],[0.5,0.9],
+        [0.7,0.9],[0.8,0.85],[0.8,0.7],[0.6,0.65],[0.5,0.65]
+      ],
+      'O': [
+        [0.25,0.15],[0.5,0.1],[0.75,0.15],[0.85,0.35],[0.85,0.65],
+        [0.75,0.85],[0.5,0.9],[0.25,0.85],[0.15,0.65],[0.15,0.35]
+      ],
+      'D': [
+        [0.15,0.1],[0.15,0.3],[0.15,0.5],[0.15,0.7],[0.15,0.9],
+        [0.3,0.9],[0.5,0.85],[0.7,0.75],[0.75,0.6],[0.75,0.4],
+        [0.7,0.25],[0.5,0.15],[0.3,0.1]
+      ]
+    };
+
+    LETTERS.forEach((letter, li) => {
+      const lx = startX + li * cellW;
+      const ly = startY;
+      const path = letterPaths[letter] || [];
+      path.forEach(([px, py]) => {
+        for (let j = 0; j < 3; j++) {
+          positions.push({
+            x: lx + px * cellW + (Math.random() - 0.5) * 8,
+            y: ly + py * cellH + (Math.random() - 0.5) * 8
+          });
+        }
+      });
+    });
+
+    return positions;
+  }
+
+  const goodTargets = getGoodPositions();
+
+  // 第一阶段：放烟花（随机粒子）
+  for (let i = 0; i < 300; i++) {
+    const burstX = Math.random() * canvas.width;
+    const burstY = Math.random() * canvas.height * 0.6;
+    const burstTime = Math.random() * 2000; // 0-2秒内爆炸
+    const targetAngle = Math.random() * Math.PI * 2;
+    const targetSpeed = 2 + Math.random() * 5;
+    const life = 1.5 + Math.random() * 2.5;
+    const hue = Math.random() * 60 + 20; // 暖色系
+
+    particles.push({
+      x: burstX, y: burstY,
+      vx: Math.cos(targetAngle) * targetSpeed,
+      vy: Math.sin(targetAngle) * targetSpeed,
+      life, maxLife: life,
+      burstTime,
+      born: performance.now(),
+      phase: 'burst',
+      hue,
+      size: 2 + Math.random() * 3,
+      target: null,
+      targetReached: false,
+      convergeStart: 0
+    });
+  }
+
+  // 第二阶段标记
+  let phase2Started = false;
+  const PHASE1_DURATION = 3500; // 3.5秒烟花
+
+  function animate(now) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const elapsed = now - particles[0]?.born || 0;
+
+    // 进入第二阶段：汇聚成GOOD
+    if (elapsed > PHASE1_DURATION && !phase2Started) {
+      phase2Started = true;
+
+      // 重置所有粒子，分配目标
+      particles.forEach((p, i) => {
+        if (i < goodTargets.length) {
+          p.target = goodTargets[i];
+          p.phase = 'converge';
+          p.convergeStart = now;
+          p.convergeDuration = 2000 + Math.random() * 500;
+          p.startX = p.x;
+          p.startY = p.y;
+          p.life = 3;
+          p.maxLife = 3;
+          p.hue = 200 + Math.random() * 40; // 蓝色/青色系
+          p.size = 2.5 + Math.random() * 2;
+        } else {
+          // 多余粒子渐隐
+          p.life = 0;
+        }
+      });
+    }
+
+    let aliveCount = 0;
+    particles.forEach(p => {
+      const age = (now - p.born) / 1000;
+
+      if (p.phase === 'burst') {
+        if (age * 1000 < p.burstTime) {
+          // 还没炸，上升中
+          p.x = p.x + Math.cos(age * 3) * 0.3;
+          p.y -= 1.5;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, 1.5, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(255,255,200,0.8)`;
+          ctx.fill();
+          aliveCount++;
+        } else if ((age * 1000 - p.burstTime) / 1000 < p.maxLife) {
+          // 炸开后飘散
+          const burstAge = (age * 1000 - p.burstTime) / 1000;
+          p.x += p.vx * 0.6;
+          p.y += p.vy * 0.6;
+          p.vy += 0.05;
+          const alpha = Math.max(0, 1 - burstAge / p.maxLife);
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.size * (1 - burstAge / p.maxLife), 0, Math.PI * 2);
+          ctx.fillStyle = `hsla(${p.hue},100%,60%,${alpha})`;
+          ctx.fill();
+          aliveCount++;
+        }
+      } else if (p.phase === 'converge' && p.target) {
+        const cAge = (now - p.convergeStart) / 1000;
+        const progress = Math.min(1, cAge / (p.convergeDuration / 1000));
+
+        // easeInOutCubic
+        const eased = progress < 0.5
+          ? 4 * progress * progress * progress
+          : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+
+        p.x = p.startX + (p.target.x - p.startX) * eased;
+        p.y = p.startY + (p.target.y - p.startY) * eased;
+
+        const alpha = progress < 0.9 ? 0.9 : 0.9 * (1 - (progress - 0.9) / 0.1);
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fillStyle = `hsla(${p.hue},100%,65%,${Math.max(0, alpha)})`;
+        ctx.fill();
+        aliveCount++;
+      }
+    });
+
+    // 汇聚完成后显示"GOOD"光晕
+    if (phase2Started && aliveCount < 30) {
+      const cx = canvas.width / 2;
+      const cy = canvas.height / 2;
+      ctx.save();
+      ctx.font = 'bold 160px "Segoe UI", "Microsoft YaHei", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+
+      // 光晕
+      const glowAlpha = Math.min(0.8, (now - (particles[0]?.born || now) - PHASE1_DURATION - 1500) / 1000);
+      if (glowAlpha > 0) {
+        ctx.shadowColor = 'rgba(0,229,255,0.8)';
+        ctx.shadowBlur = 40;
+        ctx.fillStyle = `rgba(0,229,255,${glowAlpha})`;
+        ctx.fillText('GOOD', cx, cy);
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = `rgba(255,255,255,${glowAlpha})`;
+        ctx.fillText('GOOD', cx, cy);
+      }
+      ctx.restore();
+
+      // 渐隐canvas
+      if (glowAlpha >= 0.7) {
+        setTimeout(() => {
+          canvas.style.transition = 'opacity 2s';
+          canvas.style.opacity = '0';
+          setTimeout(() => canvas.remove(), 2000);
+        }, 1500);
+      }
+    }
+
+    if (aliveCount > 0 || !phase2Started) {
+      requestAnimationFrame(animate);
+    } else {
+      canvas.remove();
+    }
+  }
+
+  requestAnimationFrame(animate);
+}
+
+// ====== 排行榜 ======
+function showLeaderboard() {
+  const history = getScoreHistory();
+  const tbody = document.getElementById('leaderboard-body');
+  const emptyEl = document.getElementById('leaderboard-empty');
+
+  if (history.length === 0) {
+    tbody.innerHTML = '';
+    emptyEl.style.display = 'block';
+  } else {
+    emptyEl.style.display = 'none';
+    const sorted = [...history].sort((a, b) => b.score - a.score);
+
+    tbody.innerHTML = sorted.map((r, i) => {
+      const rank = i + 1;
+      let rankHtml = `<span class="rank-badge">${rank}</span>`;
+      if (rank === 1) rankHtml = `<span class="rank-badge rank-1">🥇</span>`;
+      else if (rank === 2) rankHtml = `<span class="rank-badge rank-2">🥈</span>`;
+      else if (rank === 3) rankHtml = `<span class="rank-badge rank-3">🥉</span>`;
+
+      const timeStr = new Date(r.time).toLocaleString('zh-CN', {
+        month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit'
+      });
+
+      const isCurrent = r.name === currentStudent.name && r.stuid === currentStudent.stuid && r.score === examState.totalScore;
+      const rowClass = isCurrent ? ' class="current-student"' : '';
+
+      return `<tr${rowClass}>
+        <td>${rankHtml}</td>
+        <td>${escapeHtml(r.name)}</td>
+        <td>${escapeHtml(r.stuid)}</td>
+        <td><strong>${r.score}</strong></td>
+        <td>${timeStr}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  document.getElementById('leaderboard-modal').classList.add('show');
+}
+
+function closeLeaderboard() {
+  document.getElementById('leaderboard-modal').classList.remove('show');
 }
 
 // ====== 键盘快捷键 ======
 document.addEventListener('keydown', function(e) {
   if (!document.getElementById('exam-screen').classList.contains('active')) return;
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-
-  if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === 'PageDown') {
-    e.preventDefault();
-    nextQuestion();
-  } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp' || e.key === 'PageUp') {
-    e.preventDefault();
-    prevQuestion();
-  }
+  if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === 'PageDown') { e.preventDefault(); nextQuestion(); }
+  else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp' || e.key === 'PageUp') { e.preventDefault(); prevQuestion(); }
 });
 
 // ====== 触屏滑动 ======
@@ -718,17 +963,14 @@ document.addEventListener('keydown', function(e) {
   let touchStartX = 0, touchStartY = 0;
   document.addEventListener('touchstart', function(e) {
     if (!document.getElementById('exam-screen').classList.contains('active')) return;
-    touchStartX = e.touches[0].clientX;
-    touchStartY = e.touches[0].clientY;
+    touchStartX = e.touches[0].clientX; touchStartY = e.touches[0].clientY;
   }, { passive:true });
-
   document.addEventListener('touchend', function(e) {
     if (!document.getElementById('exam-screen').classList.contains('active')) return;
     const dx = (e.changedTouches[0]?.clientX || touchStartX) - touchStartX;
     const dy = (e.changedTouches[0]?.clientY || touchStartY) - touchStartY;
     if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 50) {
-      if (dx < -30) nextQuestion();
-      else if (dx > 30) prevQuestion();
+      if (dx < -30) nextQuestion(); else if (dx > 30) prevQuestion();
     }
   });
 })();
@@ -741,10 +983,7 @@ document.addEventListener('keydown', function(e) {
   const maxParticles = 60;
   let mouseX = -1000, mouseY = -1000;
 
-  function resize() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-  }
+  function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
   window.addEventListener('resize', resize);
   resize();
 
@@ -761,21 +1000,13 @@ document.addEventListener('keydown', function(e) {
       this.opacity = Math.random() * 0.4 + 0.1;
     }
     update() {
-      this.x += this.vx;
-      this.y += this.vy;
-      const dx = mouseX - this.x;
-      const dy = mouseY - this.y;
+      this.x += this.vx; this.y += this.vy;
+      const dx = mouseX - this.x, dy = mouseY - this.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
-      if (dist < 150) {
-        this.vx += (dx / dist) * 0.015;
-        this.vy += (dy / dist) * 0.015;
-      }
-      this.vx *= 0.99;
-      this.vy *= 0.99;
-      if (this.x < 0) this.x = canvas.width;
-      if (this.x > canvas.width) this.x = 0;
-      if (this.y < 0) this.y = canvas.height;
-      if (this.y > canvas.height) this.y = 0;
+      if (dist < 150) { this.vx += (dx / dist) * 0.015; this.vy += (dy / dist) * 0.015; }
+      this.vx *= 0.99; this.vy *= 0.99;
+      if (this.x < 0) this.x = canvas.width; if (this.x > canvas.width) this.x = 0;
+      if (this.y < 0) this.y = canvas.height; if (this.y > canvas.height) this.y = 0;
     }
     draw(ctx) {
       ctx.beginPath();
