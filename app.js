@@ -692,6 +692,7 @@ function showResult() {
   if (percentage >= 0.9) {
     setTimeout(() => launchFireworks(), 800);
   }
+}
 
 function animateNumber(elementId, from, to, duration) {
   const el = document.getElementById(elementId);
