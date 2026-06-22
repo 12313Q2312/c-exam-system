@@ -1,0 +1,179 @@
+0 verbose cli C:\Program Files\nodejs\node.exe C:\Program Files\nodejs\node_modules\npm\bin\npm-cli.js
+1 info using npm@11.6.2
+2 info using node@v25.2.1
+3 silly config load:file:C:\Program Files\nodejs\node_modules\npm\npmrc
+4 silly config load:file:C:\Users\Lenovo\.npmrc
+5 silly config load:file:C:\Users\Lenovo\AppData\Roaming\npm\etc\npmrc
+6 verbose title npm install localtunnel
+7 verbose argv "install" "--global" "localtunnel" "--cache" "G:\\linshicunchuqu\\人工智能C语言考试模拟系统\\.npm-cache"
+8 verbose logfile logs-max:10 dir:G:\linshicunchuqu\人工智能C语言考试模拟系统\.npm-cache\_logs\2026-06-22T06_47_07_387Z-
+9 verbose logfile G:\linshicunchuqu\人工智能C语言考试模拟系统\.npm-cache\_logs\2026-06-22T06_47_07_387Z-debug-0.log
+10 silly packumentCache heap:4496293888 maxSize:1124073472 maxEntrySize:562036736
+11 silly logfile done cleaning log files
+12 silly idealTree buildDeps
+13 silly fetch manifest localtunnel@*
+14 silly packumentCache full:https://registry.npmmirror.com/localtunnel cache-miss
+15 http fetch GET 200 https://registry.npmmirror.com/localtunnel 90ms (cache miss)
+16 silly packumentCache full:https://registry.npmmirror.com/localtunnel set size:10779 disposed:false
+17 silly placeDep ROOT localtunnel@2.0.2 OK for:  want: *
+18 silly fetch manifest axios@0.21.4
+19 silly packumentCache full:https://registry.npmmirror.com/axios cache-miss
+20 silly fetch manifest debug@4.3.2
+21 silly packumentCache full:https://registry.npmmirror.com/debug cache-miss
+22 silly fetch manifest openurl@1.1.1
+23 silly packumentCache full:https://registry.npmmirror.com/openurl cache-miss
+24 silly fetch manifest yargs@17.1.1
+25 silly packumentCache full:https://registry.npmmirror.com/yargs cache-miss
+26 http fetch GET 200 https://registry.npmmirror.com/npm 152ms
+27 http fetch GET 200 https://registry.npmmirror.com/axios 158ms (cache miss)
+28 silly packumentCache full:https://registry.npmmirror.com/axios set size:136799 disposed:false
+29 http fetch GET 200 https://registry.npmmirror.com/debug 162ms (cache miss)
+30 silly packumentCache full:https://registry.npmmirror.com/debug set size:32036 disposed:false
+31 http fetch GET 200 https://registry.npmmirror.com/openurl 166ms (cache miss)
+32 silly packumentCache full:https://registry.npmmirror.com/openurl set size:2216 disposed:false
+33 http fetch GET 200 https://registry.npmmirror.com/yargs 170ms (cache miss)
+34 silly packumentCache full:https://registry.npmmirror.com/yargs set size:96931 disposed:false
+35 silly placeDep node_modules/localtunnel axios@0.21.4 OK for: localtunnel@2.0.2 want: 0.21.4
+36 silly placeDep node_modules/localtunnel debug@4.3.2 OK for: localtunnel@2.0.2 want: 4.3.2
+37 silly placeDep node_modules/localtunnel openurl@1.1.1 OK for: localtunnel@2.0.2 want: 1.1.1
+38 silly placeDep node_modules/localtunnel yargs@17.1.1 OK for: localtunnel@2.0.2 want: 17.1.1
+39 silly fetch manifest follow-redirects@^1.14.0
+40 silly packumentCache full:https://registry.npmmirror.com/follow-redirects cache-miss
+41 silly fetch manifest ms@2.1.2
+42 silly packumentCache full:https://registry.npmmirror.com/ms cache-miss
+43 silly fetch manifest cliui@^7.0.2
+44 silly packumentCache full:https://registry.npmmirror.com/cliui cache-miss
+45 silly fetch manifest escalade@^3.1.1
+46 silly packumentCache full:https://registry.npmmirror.com/escalade cache-miss
+47 silly fetch manifest get-caller-file@^2.0.5
+48 silly packumentCache full:https://registry.npmmirror.com/get-caller-file cache-miss
+49 silly fetch manifest require-directory@^2.1.1
+50 silly packumentCache full:https://registry.npmmirror.com/require-directory cache-miss
+51 silly fetch manifest string-width@^4.2.0
+52 silly packumentCache full:https://registry.npmmirror.com/string-width cache-miss
+53 silly fetch manifest y18n@^5.0.5
+54 silly packumentCache full:https://registry.npmmirror.com/y18n cache-miss
+55 silly fetch manifest yargs-parser@^20.2.2
+56 silly packumentCache full:https://registry.npmmirror.com/yargs-parser cache-miss
+57 http fetch GET 200 https://registry.npmmirror.com/cliui 47ms (cache miss)
+58 silly packumentCache full:https://registry.npmmirror.com/cliui set size:13583 disposed:false
+59 http fetch GET 200 https://registry.npmmirror.com/escalade 56ms (cache miss)
+60 silly packumentCache full:https://registry.npmmirror.com/escalade set size:6820 disposed:false
+61 http fetch GET 200 https://registry.npmmirror.com/get-caller-file 62ms (cache miss)
+62 silly packumentCache full:https://registry.npmmirror.com/get-caller-file set size:3962 disposed:false
+63 http fetch GET 200 https://registry.npmmirror.com/ms 63ms (cache miss)
+64 silly packumentCache full:https://registry.npmmirror.com/ms set size:15985 disposed:false
+65 http fetch GET 200 https://registry.npmmirror.com/follow-redirects 66ms (cache miss)
+66 silly packumentCache full:https://registry.npmmirror.com/follow-redirects set size:30122 disposed:false
+67 http fetch GET 200 https://registry.npmmirror.com/require-directory 93ms (cache miss)
+68 silly packumentCache full:https://registry.npmmirror.com/require-directory set size:5300 disposed:false
+69 http fetch GET 200 https://registry.npmmirror.com/y18n 100ms (cache miss)
+70 silly packumentCache full:https://registry.npmmirror.com/y18n set size:9331 disposed:false
+71 http fetch GET 200 https://registry.npmmirror.com/string-width 108ms (cache miss)
+72 silly packumentCache full:https://registry.npmmirror.com/string-width set size:13505 disposed:false
+73 http fetch GET 200 https://registry.npmmirror.com/yargs-parser 110ms (cache miss)
+74 silly packumentCache full:https://registry.npmmirror.com/yargs-parser set size:34839 disposed:false
+75 silly placeDep node_modules/localtunnel follow-redirects@1.16.0 OK for: axios@0.21.4 want: ^1.14.0
+76 silly placeDep node_modules/localtunnel ms@2.1.2 OK for: debug@4.3.2 want: 2.1.2
+77 silly placeDep node_modules/localtunnel cliui@7.0.4 OK for: yargs@17.1.1 want: ^7.0.2
+78 silly placeDep node_modules/localtunnel escalade@3.2.0 OK for: yargs@17.1.1 want: ^3.1.1
+79 silly placeDep node_modules/localtunnel get-caller-file@2.0.5 OK for: yargs@17.1.1 want: ^2.0.5
+80 silly placeDep node_modules/localtunnel require-directory@2.1.1 OK for: yargs@17.1.1 want: ^2.1.1
+81 silly placeDep node_modules/localtunnel string-width@4.2.3 OK for: yargs@17.1.1 want: ^4.2.0
+82 silly placeDep node_modules/localtunnel y18n@5.0.8 OK for: yargs@17.1.1 want: ^5.0.5
+83 silly placeDep node_modules/localtunnel yargs-parser@20.2.9 OK for: yargs@17.1.1 want: ^20.2.2
+84 silly fetch manifest strip-ansi@^6.0.0
+85 silly packumentCache full:https://registry.npmmirror.com/strip-ansi cache-miss
+86 silly fetch manifest wrap-ansi@^7.0.0
+87 silly packumentCache full:https://registry.npmmirror.com/wrap-ansi cache-miss
+88 silly fetch manifest emoji-regex@^8.0.0
+89 silly packumentCache full:https://registry.npmmirror.com/emoji-regex cache-miss
+90 silly fetch manifest is-fullwidth-code-point@^3.0.0
+91 silly packumentCache full:https://registry.npmmirror.com/is-fullwidth-code-point cache-miss
+92 silly fetch manifest strip-ansi@^6.0.1
+93 silly packumentCache full:https://registry.npmmirror.com/strip-ansi cache-miss
+94 http fetch GET 200 https://registry.npmmirror.com/strip-ansi 52ms (cache miss)
+95 silly packumentCache full:https://registry.npmmirror.com/strip-ansi set size:8259 disposed:false
+96 http fetch GET 200 https://registry.npmmirror.com/strip-ansi 53ms (cache miss)
+97 silly packumentCache full:https://registry.npmmirror.com/strip-ansi set size:8259 disposed:false
+98 silly packumentCache full:https://registry.npmmirror.com/strip-ansi dispose
+99 http fetch GET 200 https://registry.npmmirror.com/emoji-regex 56ms (cache miss)
+100 silly packumentCache full:https://registry.npmmirror.com/emoji-regex set size:17651 disposed:false
+101 http fetch GET 200 https://registry.npmmirror.com/is-fullwidth-code-point 57ms (cache miss)
+102 silly packumentCache full:https://registry.npmmirror.com/is-fullwidth-code-point set size:3385 disposed:false
+103 http fetch GET 200 https://registry.npmmirror.com/wrap-ansi 58ms (cache miss)
+104 silly packumentCache full:https://registry.npmmirror.com/wrap-ansi set size:10443 disposed:false
+105 silly placeDep node_modules/localtunnel strip-ansi@6.0.1 OK for: cliui@7.0.4 want: ^6.0.0
+106 silly placeDep node_modules/localtunnel wrap-ansi@7.0.0 OK for: cliui@7.0.4 want: ^7.0.0
+107 silly fetch manifest ansi-regex@^5.0.1
+108 silly packumentCache full:https://registry.npmmirror.com/ansi-regex cache-miss
+109 silly fetch manifest ansi-styles@^4.0.0
+110 silly packumentCache full:https://registry.npmmirror.com/ansi-styles cache-miss
+111 http fetch GET 200 https://registry.npmmirror.com/ansi-regex 42ms (cache miss)
+112 silly packumentCache full:https://registry.npmmirror.com/ansi-regex set size:9857 disposed:false
+113 http fetch GET 200 https://registry.npmmirror.com/ansi-styles 45ms (cache miss)
+114 silly packumentCache full:https://registry.npmmirror.com/ansi-styles set size:13769 disposed:false
+115 silly placeDep node_modules/localtunnel emoji-regex@8.0.0 OK for: string-width@4.2.3 want: ^8.0.0
+116 silly placeDep node_modules/localtunnel is-fullwidth-code-point@3.0.0 OK for: string-width@4.2.3 want: ^3.0.0
+117 silly placeDep node_modules/localtunnel ansi-regex@5.0.1 OK for: strip-ansi@6.0.1 want: ^5.0.1
+118 silly placeDep node_modules/localtunnel ansi-styles@4.3.0 OK for: wrap-ansi@7.0.0 want: ^4.0.0
+119 silly fetch manifest color-convert@^2.0.1
+120 silly packumentCache full:https://registry.npmmirror.com/color-convert cache-miss
+121 http fetch GET 200 https://registry.npmmirror.com/color-convert 32ms (cache miss)
+122 silly packumentCache full:https://registry.npmmirror.com/color-convert set size:13807 disposed:false
+123 silly placeDep node_modules/localtunnel color-convert@2.0.1 OK for: ansi-styles@4.3.0 want: ^2.0.1
+124 silly fetch manifest color-name@~1.1.4
+125 silly packumentCache full:https://registry.npmmirror.com/color-name cache-miss
+126 http fetch GET 200 https://registry.npmmirror.com/color-name 35ms (cache miss)
+127 silly packumentCache full:https://registry.npmmirror.com/color-name set size:5269 disposed:false
+128 silly placeDep node_modules/localtunnel color-name@1.1.4 OK for: color-convert@2.0.1 want: ~1.1.4
+129 silly reify moves {}
+130 verbose stack Error: EPERM: operation not permitted, mkdir 'C:\Users\Lenovo\AppData\Roaming\npm\node_modules\localtunnel'
+130 verbose stack     at async mkdir (node:internal/fs/promises:861:10)
+130 verbose stack     at async C:\Program Files\nodejs\node_modules\npm\node_modules\@npmcli\arborist\lib\arborist\reify.js:576:20
+130 verbose stack     at async Promise.allSettled (index 0)
+130 verbose stack     at async [reifyPackages] (C:\Program Files\nodejs\node_modules\npm\node_modules\@npmcli\arborist\lib\arborist\reify.js:313:11)
+130 verbose stack     at async Arborist.reify (C:\Program Files\nodejs\node_modules\npm\node_modules\@npmcli\arborist\lib\arborist\reify.js:125:5)
+130 verbose stack     at async Install.exec (C:\Program Files\nodejs\node_modules\npm\lib\commands\install.js:150:5)
+130 verbose stack     at async Npm.exec (C:\Program Files\nodejs\node_modules\npm\lib\npm.js:208:9)
+130 verbose stack     at async module.exports (C:\Program Files\nodejs\node_modules\npm\lib\cli\entry.js:67:5)
+131 error code EPERM
+132 error syscall mkdir
+133 error path C:\Users\Lenovo\AppData\Roaming\npm\node_modules\localtunnel
+134 error errno -4048
+135 error Error: EPERM: operation not permitted, mkdir 'C:\Users\Lenovo\AppData\Roaming\npm\node_modules\localtunnel'
+135 error     at async mkdir (node:internal/fs/promises:861:10)
+135 error     at async C:\Program Files\nodejs\node_modules\npm\node_modules\@npmcli\arborist\lib\arborist\reify.js:576:20
+135 error     at async Promise.allSettled (index 0)
+135 error     at async [reifyPackages] (C:\Program Files\nodejs\node_modules\npm\node_modules\@npmcli\arborist\lib\arborist\reify.js:313:11)
+135 error     at async Arborist.reify (C:\Program Files\nodejs\node_modules\npm\node_modules\@npmcli\arborist\lib\arborist\reify.js:125:5)
+135 error     at async Install.exec (C:\Program Files\nodejs\node_modules\npm\lib\commands\install.js:150:5)
+135 error     at async Npm.exec (C:\Program Files\nodejs\node_modules\npm\lib\npm.js:208:9)
+135 error     at async module.exports (C:\Program Files\nodejs\node_modules\npm\lib\cli\entry.js:67:5) {
+135 error   errno: -4048,
+135 error   code: 'EPERM',
+135 error   syscall: 'mkdir',
+135 error   path: 'C:\\Users\\Lenovo\\AppData\\Roaming\\npm\\node_modules\\localtunnel'
+135 error }
+136 error
+136 error The operation was rejected by your operating system.
+136 error It's possible that the file was already in use (by a text editor or antivirus),
+136 error or that you lack permissions to access it.
+136 error
+136 error If you believe this might be a permissions issue, please double-check the
+136 error permissions of the file and its containing directories, or try running
+136 error the command again as root/Administrator.
+137 silly unfinished npm timer reify 1782110829896
+138 silly unfinished npm timer reify:createSparse 1782110830507
+139 verbose cwd G:\linshicunchuqu\人工智能C语言考试模拟系统
+140 verbose os Windows_NT 10.0.26200
+141 verbose node v25.2.1
+142 verbose npm  v11.6.2
+143 notice
+143 notice New minor version of npm available! 11.6.2 -> 11.17.0
+143 notice Changelog: https://github.com/npm/cli/releases/tag/v11.17.0
+143 notice To update run: npm install -g npm@11.17.0
+143 notice  { force: true, Symbol(proc-log.meta): true }
+144 verbose exit -4048
+145 verbose code -4048
+146 error A complete log of this run can be found in: G:\linshicunchuqu\人工智能C语言考试模拟系统\.npm-cache\_logs\2026-06-22T06_47_07_387Z-debug-0.log

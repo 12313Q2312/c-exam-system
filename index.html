@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>人工智能 &amp; C语言 考试模拟系统</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ====== Canvas 粒子背景 ====== -->
+<canvas id="particleCanvas"></canvas>
+
+<!-- ====== 首页 ====== -->
+<div id="home-screen" class="screen active">
+  <div class="home-content">
+    <div class="logo-icon">
+      <svg viewBox="0 0 100 100" width="80" height="80">
+        <circle cx="50" cy="50" r="45" fill="none" stroke="var(--cyan)" stroke-width="2" opacity="0.3"/>
+        <circle cx="50" cy="50" r="35" fill="none" stroke="var(--cyan)" stroke-width="1.5" opacity="0.5"/>
+        <circle cx="50" cy="50" r="25" fill="none" stroke="var(--purple)" stroke-width="1" opacity="0.7"/>
+        <circle cx="50" cy="50" r="8" fill="var(--cyan)"/>
+        <line x1="50" y1="10" x2="50" y2="25" stroke="var(--cyan)" stroke-width="1.5" opacity="0.6"/>
+        <line x1="50" y1="75" x2="50" y2="90" stroke="var(--purple)" stroke-width="1.5" opacity="0.6"/>
+        <line x1="10" y1="50" x2="25" y2="50" stroke="var(--cyan)" stroke-width="1.5" opacity="0.6"/>
+        <line x1="75" y1="50" x2="90" y2="50" stroke="var(--purple)" stroke-width="1.5" opacity="0.6"/>
+      </svg>
+    </div>
+
+    <h1 class="main-title">
+      <span class="title-line">人工智能 <span class="amp">&amp;</span> C语言</span>
+      <span class="title-sub">考试模拟系统</span>
+    </h1>
+
+    <p class="subtitle">随机抽题 · 限时考试 · 即时判分</p>
+
+    <div class="rules-card">
+      <h3>📋 考试说明</h3>
+      <div class="rules-grid">
+        <div class="rule-item">
+          <span class="rule-icon">🧠</span>
+          <div>
+            <strong>人工智能通识</strong>
+            <p>单选题 20 题 × 1 分 = <em>20 分</em></p>
+          </div>
+        </div>
+        <div class="rule-item">
+          <span class="rule-icon">📝</span>
+          <div>
+            <strong>C语言 单选题</strong>
+            <p>15 题 × 2 分 = <em>30 分</em></p>
+          </div>
+        </div>
+        <div class="rule-item">
+          <span class="rule-icon">✍️</span>
+          <div>
+            <strong>C语言 填空题</strong>
+            <p>15 题 × 2 分 = <em>30 分</em></p>
+          </div>
+        </div>
+        <div class="rule-item">
+          <span class="rule-icon">🔍</span>
+          <div>
+            <strong>程序阅读题</strong>
+            <p>5 题 × 2 分 = <em>10 分</em></p>
+          </div>
+        </div>
+        <div class="rule-item">
+          <span class="rule-icon">🔧</span>
+          <div>
+            <strong>程序补全题</strong>
+            <p>5 题 × 2 分 = <em>10 分</em></p>
+          </div>
+        </div>
+      </div>
+      <div class="total-score">
+        <span>满分</span>
+        <strong>100 分</strong>
+      </div>
+    </div>
+
+    <button id="btn-start" class="glow-btn" onclick="startExam()">
+      <span>开始考试</span>
+      <svg width="24" height="24" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" fill="currentColor"/></svg>
+    </button>
+  </div>
+</div>
+
+<!-- ====== 考试屏 ====== -->
+<div id="exam-screen" class="screen">
+  <!-- 顶部导航栏 -->
+  <div class="top-bar">
+    <div class="top-bar-left">
+      <span class="exam-title">考试中</span>
+      <span class="progress-text"><span id="progress-current">1</span> / <span id="progress-total">60</span></span>
+    </div>
+    <div class="top-bar-center">
+      <div class="timer-ring">
+        <svg width="56" height="56" viewBox="0 0 56 56">
+          <circle cx="28" cy="28" r="24" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="3"/>
+          <circle id="timer-circle" cx="28" cy="28" r="24" fill="none" stroke="var(--cyan)" stroke-width="3"
+            stroke-dasharray="150.8" stroke-dashoffset="0" stroke-linecap="round" transform="rotate(-90 28 28)"/>
+        </svg>
+        <span id="timer-text" class="timer-text">90:00</span>
+      </div>
+    </div>
+    <div class="top-bar-right">
+      <button class="submit-btn" onclick="submitExam()">交卷</button>
+    </div>
+  </div>
+
+  <!-- 翻页题目区 -->
+  <div class="page-container" id="page-container">
+    <!-- 左箭头 -->
+    <button class="page-arrow page-prev" id="btn-prev" onclick="prevQuestion()" title="上一题 (←键)">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M15 18l-6-6 6-6"/></svg>
+    </button>
+
+    <!-- 题目卡片视口 -->
+    <div class="page-viewport" id="page-viewport">
+      <div class="page-card-wrapper" id="page-card-wrapper">
+        <div class="question-card page-card" id="qcard-current"></div>
+        <div class="question-card page-card" id="qcard-next" style="display:none;"></div>
+      </div>
+    </div>
+
+    <!-- 右箭头 -->
+    <button class="page-arrow page-next" id="btn-next" onclick="nextQuestion()" title="下一题 (→键)">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M9 18l6-6-6-6"/></svg>
+    </button>
+
+    <!-- 底部：题型快捷跳转 + 页码点 -->
+    <div class="page-footer">
+      <div class="page-type-tabs" id="page-type-tabs"></div>
+      <div class="page-dots" id="page-dots"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ====== 成绩屏 ====== -->
+<div id="result-screen" class="screen">
+  <div class="result-content">
+    <div class="result-top">
+      <h2 class="result-title">考试结束</h2>
+      <div class="score-ring-container">
+        <svg width="220" height="220" viewBox="0 0 220 220" class="score-ring">
+          <circle cx="110" cy="110" r="95" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="12"/>
+          <circle id="score-circle" cx="110" cy="110" r="95" fill="none" stroke="var(--cyan)" stroke-width="12"
+            stroke-dasharray="597" stroke-dashoffset="597" stroke-linecap="round" transform="rotate(-90 110 110)"/>
+        </svg>
+        <div class="score-center">
+          <span id="score-number" class="score-number">0</span>
+          <span class="score-unit">/ 100</span>
+        </div>
+      </div>
+      <div id="score-grade" class="score-grade"></div>
+    </div>
+
+    <div class="result-details" id="result-details"></div>
+
+    <div class="wrong-questions" id="wrong-questions"></div>
+
+    <button class="glow-btn" onclick="restartExam()">
+      <span>再来一次</span>
+      <svg width="20" height="20" viewBox="0 0 24 24"><path d="M17.65 6.35A7.96 7.96 0 0012 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0112 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z" fill="currentColor"/></svg>
+    </button>
+  </div>
+</div>
+
+<!-- 确认交卷弹窗 -->
+<div id="confirm-modal" class="modal-overlay">
+  <div class="modal-card">
+    <h3>确认交卷?</h3>
+    <p id="confirm-info"></p>
+    <div class="modal-btns">
+      <button class="modal-btn cancel" onclick="closeModal()">继续答题</button>
+      <button class="modal-btn confirm" onclick="confirmSubmit()">确认交卷</button>
+    </div>
+  </div>
+</div>
+
+<script src="ai_data.js"></script>
+<script src="c_data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
