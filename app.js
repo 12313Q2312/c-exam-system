@@ -8,10 +8,10 @@ const TOTAL_TIME = 120 * 60; // 120 分钟 (2 小时)
 const EXAM_CONFIG = {
   ai_danxuan:    { count:10, score:1, label:'AI 单选题',   icon:'🧠', shortLabel:'AI选择'  },
   ai_tiankong:   { count:10, score:1, label:'AI 填空题',   icon:'💬', shortLabel:'AI填空'  },
-  c_danxuan:     { count:15, score:2, label:'C 单选题',    icon:'📝', shortLabel:'C单选'   },
-  c_tiankong:    { count:15, score:2, label:'C 填空题',    icon:'✍️', shortLabel:'C填空'   },
-  c_prog_read:   { count:5,  score:2, label:'程序阅读题',  icon:'🔍', shortLabel:'阅读'    },
-  c_prog_fill:   { count:5,  score:2, label:'程序补全题',  icon:'🔧', shortLabel:'补全'    },
+  c_danxuan:     { count:20, score:1, label:'C 单选题',    icon:'📝', shortLabel:'C单选'   },
+  c_tiankong:    { count:15, score:1, label:'C 填空题',    icon:'✍️', shortLabel:'C填空'   },
+  c_prog_read:   { count:5,  score:3, label:'程序阅读题',  icon:'🔍', shortLabel:'阅读'    },
+  c_prog_fill:   { count:5,  score:3, label:'程序补全题',  icon:'🔧', shortLabel:'补全', perBlank:true },
 };
 
 // 当前考生信息
@@ -511,8 +511,9 @@ function gradeExam() {
 
   examState.questions.forEach(q => {
     const cfg = EXAM_CONFIG[q.type];
-    typeMax[q.type] += cfg.score;
     const userAns = examState.answers[q.globalIdx];
+    let questionScore = 0;        // 本题实际得分
+    let questionMaxScore = 0;     // 本题满分
     let isCorrect = false;
     let userDisplay = '';
     let correctDisplay = '';
@@ -520,55 +521,72 @@ function gradeExam() {
     switch (q.type) {
       case 'ai_danxuan':
       case 'c_danxuan': {
+        questionMaxScore = cfg.score;
         const ua = String(userAns || '').trim().toUpperCase();
         const ca = String(q.data.answer || '').trim().toUpperCase();
         userDisplay = ua || '未作答';
         correctDisplay = ca + (q.data.options && q.data.options[ca] ? ` (${q.data.options[ca]})` : '');
         isCorrect = ua === ca;
+        if (isCorrect) questionScore = cfg.score;
         break;
       }
       case 'ai_tiankong': {
+        questionMaxScore = cfg.score;
         const ua = String(userAns || '').trim();
         const acceptable = q.data.acceptable_answers || [q.data.answer];
         userDisplay = ua || '未作答';
         correctDisplay = acceptable.join(' 或 ');
         isCorrect = acceptable.some(a => normalizeAnswer(ua) === normalizeAnswer(a));
+        if (isCorrect) questionScore = cfg.score;
         break;
       }
       case 'c_tiankong':
       case 'c_prog_read': {
+        questionMaxScore = cfg.score;
         const ua = String(userAns || '').trim();
         const acceptable = q.data.acceptable_answers || [q.data.answer];
         userDisplay = ua || '未作答';
         correctDisplay = acceptable.join(' 或 ');
         isCorrect = acceptable.some(a => normalizeAnswer(ua) === normalizeAnswer(a));
+        if (isCorrect) questionScore = cfg.score;
         break;
       }
       case 'c_prog_fill': {
+        // 逐空计分：每空3分，独立评分
         const blanks = q.data.blanks || [];
-        let allCorrect = true;
+        const perBlankScore = cfg.score; // 每空3分
+        let hasWrongBlank = false;
         userDisplay = []; correctDisplay = [];
         blanks.forEach(b => {
           const ua = String((userAns && userAns[b.position - 1]) || '').trim();
           const acceptable = b.acceptable_answers || [b.answer];
           userDisplay.push(`空${b.position}: ${ua || '未作答'}`);
           correctDisplay.push(`空${b.position}: ${acceptable.join(' 或 ')}`);
-          if (!acceptable.some(a => normalizeAnswer(ua) === normalizeAnswer(a))) allCorrect = false;
+          const blankCorrect = acceptable.some(a => normalizeAnswer(ua) === normalizeAnswer(a));
+          if (blankCorrect) {
+            questionScore += perBlankScore;
+          } else {
+            hasWrongBlank = true;
+          }
+          questionMaxScore += perBlankScore;
         });
         userDisplay = userDisplay.join('; ');
         correctDisplay = correctDisplay.join('; ');
-        isCorrect = allCorrect;
+        isCorrect = !hasWrongBlank; // 全对才标记为正确
         break;
       }
     }
 
-    if (isCorrect) { typeScores[q.type] += cfg.score; totalScore += cfg.score; }
-    else {
+    typeMax[q.type] += questionMaxScore;
+    totalScore += questionScore;
+    typeScores[q.type] += questionScore;
+
+    if (!isCorrect) {
       wrongQs.push({
         type: q.type, typeLabel: cfg.label, globalIdx: q.globalIdx,
         question: q.data.question, options: q.data.options || null,
         userAnswer: userDisplay, correctAnswer: correctDisplay,
-        explanation: q.data.explanation || null, score: cfg.score
+        explanation: q.data.explanation || null, score: questionMaxScore - questionScore
       });
     }
   });
@@ -576,7 +594,7 @@ function gradeExam() {
   examState.typeScores = typeScores;
   examState.typeMax = typeMax;
   examState.totalScore = totalScore;
-  examState.totalMax = 60; // 计算总分: 10*1 + 10*1 + 15*2 + 15*2 + 5*2 + 5*2 = 100
+  examState.totalMax = Object.values(typeMax).reduce((a, b) => a + b, 0);
   examState.wrongQs = wrongQs;
   examState.graded = true;
 
@@ -598,7 +616,12 @@ function showResult() {
   switchScreen('result-screen');
 
   const score = examState.totalScore;
-  const percentage = 100 > 0 ? score / 100 : 0;
+  const totalMax = examState.totalMax || 100;
+  const percentage = totalMax > 0 ? score / totalMax : 0;
+
+  // 动态更新总分显示
+  const scoreUnitEl = document.getElementById('score-unit');
+  if (scoreUnitEl) scoreUnitEl.textContent = `/ ${totalMax}`;
 
   let grade = '', gradeColor = '';
   if (percentage >= 0.9) { grade = '🏆 优秀'; gradeColor = 'var(--cyan)'; }
@@ -665,11 +688,10 @@ function showResult() {
   }
   document.getElementById('wrong-questions').innerHTML = wrongHtml;
 
-  // 彩蛋：超过90分放烟花
-  if (score > 90) {
+  // 彩蛋：超过90%分放烟花
+  if (percentage >= 0.9) {
     setTimeout(() => launchFireworks(), 800);
   }
-}
 
 function animateNumber(elementId, from, to, duration) {
   const el = document.getElementById(elementId);
