@@ -6,8 +6,7 @@
 // ====== 全局状态 ======
 const TOTAL_TIME = 120 * 60; // 120 分钟 (2 小时)
 const EXAM_CONFIG = {
-  ai_danxuan:    { count:10, score:1, label:'AI 单选题',   icon:'🧠', shortLabel:'AI选择'  },
-  ai_tiankong:   { count:10, score:1, label:'AI 填空题',   icon:'💬', shortLabel:'AI填空'  },
+  ai_danxuan:    { count:20, score:1, label:'AI 单选题',   icon:'🧠', shortLabel:'AI选择'  },
   c_danxuan:     { count:20, score:1, label:'C 单选题',    icon:'📝', shortLabel:'C单选'   },
   c_tiankong:    { count:15, score:1, label:'C 填空题',    icon:'✍️', shortLabel:'C填空'   },
   c_prog_read:   { count:5,  score:3, label:'程序阅读题',  icon:'🔍', shortLabel:'阅读'    },
@@ -84,37 +83,11 @@ function startExam() {
   const qs = [];
   let idx = 0;
 
-  // 打乱所有 AI 题目，选 20 道
   const shuffledAI = shuffle(window.AI_QUESTIONS);
-  const aiAll = shuffledAI.slice(0, EXAM_CONFIG.ai_danxuan.count + EXAM_CONFIG.ai_tiankong.count);
 
-  // AI 选择题：前面10道
-  aiAll.slice(0, EXAM_CONFIG.ai_danxuan.count).forEach(q => {
+  // AI 选择题：全部20道
+  shuffledAI.slice(0, EXAM_CONFIG.ai_danxuan.count).forEach(q => {
     qs.push({ type:'ai_danxuan', globalIdx:idx++, data:q, score:EXAM_CONFIG.ai_danxuan.score });
-  });
-
-  // AI 填空题：后面10道 — 从选择题转换
-  aiAll.slice(EXAM_CONFIG.ai_danxuan.count).forEach(q => {
-    // 生成可接受答案列表：字母 + 选项文本
-    const correctLetter = q.answer.toUpperCase();
-    const acceptable = [correctLetter];
-    if (q.options && q.options[correctLetter]) {
-      acceptable.push(q.options[correctLetter]);
-    }
-    const fillQ = {
-      ...q,
-      acceptable_answers: acceptable,
-      // 填空展示用：用____替换答案词
-      blank_question: q.question.replace(
-        new RegExp(escapeRegex(q.options[correctLetter] || ''), 'g'),
-        '______'
-      )
-    };
-    // 如果替换没生效，用原始题目
-    if (fillQ.blank_question === q.question) {
-      fillQ.blank_question = q.question;
-    }
-    qs.push({ type:'ai_tiankong', globalIdx:idx++, data:fillQ, score:EXAM_CONFIG.ai_tiankong.score });
   });
 
   pickRandom(window.C_QUESTIONS.danxuan, EXAM_CONFIG.c_danxuan.count).forEach(q => {
@@ -148,15 +121,11 @@ function startExam() {
   startTimer();
 }
 
-function escapeRegex(str) {
-  return String(str || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
 // ====== 渲染底部导航 ======
 function renderPageFooter() {
   const typeTabs = document.getElementById('page-type-tabs');
   if (!typeTabs) return;
-  const types = ['ai_danxuan', 'ai_tiankong', 'c_danxuan', 'c_tiankong', 'c_prog_read', 'c_prog_fill'];
+  const types = ['ai_danxuan', 'c_danxuan', 'c_tiankong', 'c_prog_read', 'c_prog_fill'];
   const startIndices = {};
   types.forEach(t => { const first = examState.questions.findIndex(q => q.type === t); startIndices[t] = first >= 0 ? first : 0; });
 
@@ -233,15 +202,6 @@ function renderQuestionContent(q) {
         }
       });
       bodyHtml += '</div>';
-      break;
-    }
-    case 'ai_tiankong': {
-      const val = escapeAttr(examState.answers[qid] || '');
-      const displayQ = qdata.blank_question || qdata.question;
-      bodyHtml = `<div class="q-body">${escapeHtml(displayQ)}</div>
-        <div class="q-hint">💡 提示：请填写正确答案的关键词或选项字母</div>
-        <input type="text" class="fill-input" data-qid="${qid}"
-          placeholder="请输入答案..." autocomplete="off" value="${val}">`;
       break;
     }
     case 'c_tiankong': {
@@ -502,7 +462,7 @@ function autoSubmit() { clearInterval(examState.timerInterval); examState.submit
 
 // ====== 判卷 ======
 function gradeExam() {
-  const types = ['ai_danxuan', 'ai_tiankong', 'c_danxuan', 'c_tiankong', 'c_prog_read', 'c_prog_fill'];
+  const types = ['ai_danxuan', 'c_danxuan', 'c_tiankong', 'c_prog_read', 'c_prog_fill'];
   const typeScores = {};
   const typeMax = {};
   const wrongQs = [];
@@ -527,16 +487,6 @@ function gradeExam() {
         userDisplay = ua || '未作答';
         correctDisplay = ca + (q.data.options && q.data.options[ca] ? ` (${q.data.options[ca]})` : '');
         isCorrect = ua === ca;
-        if (isCorrect) questionScore = cfg.score;
-        break;
-      }
-      case 'ai_tiankong': {
-        questionMaxScore = cfg.score;
-        const ua = String(userAns || '').trim();
-        const acceptable = q.data.acceptable_answers || [q.data.answer];
-        userDisplay = ua || '未作答';
-        correctDisplay = acceptable.join(' 或 ');
-        isCorrect = acceptable.some(a => normalizeAnswer(ua) === normalizeAnswer(a));
         if (isCorrect) questionScore = cfg.score;
         break;
       }
@@ -648,7 +598,7 @@ function showResult() {
 
   animateNumber('score-number', 0, score, 1500);
 
-  const types = ['ai_danxuan', 'ai_tiankong', 'c_danxuan', 'c_tiankong', 'c_prog_read', 'c_prog_fill'];
+  const types = ['ai_danxuan', 'c_danxuan', 'c_tiankong', 'c_prog_read', 'c_prog_fill'];
   document.getElementById('result-details').innerHTML = types.map(t => {
     const cfg = EXAM_CONFIG[t];
     const earned = examState.typeScores[t] || 0;
