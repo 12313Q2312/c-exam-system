@@ -48,9 +48,13 @@
       <button class="glow-btn" onclick="confirmLogin()">
         <span>开始考试</span>
         <svg width="24" height="24" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" fill="currentColor"/></svg>
-      </button>
-    </div>
+   </button>
+    <button class="glow-btn review-btn" onclick="openWrongReview()">
+      <span>📖 错题本</span>
+      <svg width="24" height="24" viewBox="0 0 24 24"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-1 9h-4v4h-2v-4H9V9h4V5h2v4h4v2z" fill="currentColor"/></svg>
+    </button>
   </div>
+</div>
 </div>
 
 <!-- ====== 首页 ====== -->
@@ -221,6 +225,46 @@
     <div class="modal-btns">
       <button class="modal-btn cancel" onclick="closeModal()">继续答题</button>
       <button class="modal-btn confirm" onclick="confirmSubmit()">确认交卷</button>
+    </div>
+  </div>
+</div>
+
+<!-- ====== 错题本屏 ====== -->
+<div id="wrong-review-screen" class="screen">
+  <div class="top-bar">
+    <div class="top-bar-left">
+      <span class="exam-title">📖 错题本</span>
+      <span class="progress-text"><span id="wrong-progress-current">1</span> / <span id="wrong-progress-total">0</span></span>
+    </div>
+    <div class="top-bar-center">
+      <span class="wrong-review-badge">错题回顾</span>
+    </div>
+    <div class="top-bar-right">
+      <button class="submit-btn" onclick="clearWrongQuestions()" style="border-color:var(--amber);color:var(--amber);background:rgba(245,158,11,0.1);margin-right:8px;">清空</button>
+      <button class="submit-btn" onclick="closeWrongReview()" style="border-color:var(--cyan);color:var(--cyan);background:rgba(0,229,255,0.1);">返回首页</button>
+    </div>
+  </div>
+
+  <div class="page-container" id="wrong-page-container">
+    <button class="page-arrow page-prev" id="wrong-btn-prev" onclick="prevWrongQuestion()" title="上一题 (←键)">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M15 18l-6-6 6-6"/></svg>
+    </button>
+
+    <div class="page-viewport" id="wrong-page-viewport">
+      <div class="page-card-wrapper" id="wrong-page-card-wrapper">
+        <div class="question-card page-card" id="wrong-qcard-current"></div>
+      </div>
+    </div>
+
+    <button class="page-arrow page-next" id="wrong-btn-next" onclick="nextWrongQuestion()" title="下一题 (→键)">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M9 18l6-6-6-6"/></svg>
+    </button>
+
+    <div class="page-footer">
+      <div style="color:var(--text-dim);font-size:0.85rem;">
+        <span id="wrong-count-label">共 0 道错题</span>
+      </div>
+      <div class="page-dots" id="wrong-page-dots"></div>
     </div>
   </div>
 </div>

@@ -1,0 +1,16 @@
+0 verbose cli C:\Program Files\nodejs\node.exe C:\Program Files\nodejs\node_modules\npm\bin\npm-cli.js
+1 info using npm@11.6.2
+2 info using node@v25.2.1
+3 silly config load:file:C:\Program Files\nodejs\node_modules\npm\npmrc
+4 silly config load:file:C:\Users\Lenovo\.npmrc
+5 silly config load:file:G:\linshicunchuqu\人工智能C语言考试模拟系统\.npm-tools\etc\npmrc
+6 verbose title npm prefix
+7 verbose argv "prefix" "--global"
+8 verbose logfile logs-max:10 dir:G:\linshicunchuqu\人工智能C语言考试模拟系统\.npm-cache\_logs\2026-06-22T07_19_34_725Z-
+9 verbose logfile G:\linshicunchuqu\人工智能C语言考试模拟系统\.npm-cache\_logs\2026-06-22T07_19_34_725Z-debug-0.log
+10 verbose cwd G:\linshicunchuqu\人工智能C语言考试模拟系统\.npm-tools\node_modules\agent-browser
+11 verbose os Windows_NT 10.0.26200
+12 verbose node v25.2.1
+13 verbose npm  v11.6.2
+14 verbose exit 0
+15 info ok

@@ -667,3 +667,106 @@ body {
   font-size:0.65rem; color:var(--text-dim);
   opacity:0.5; pointer-events:none;
 }
+
+/* ====== 错题本按钮（首页） ====== */
+.review-btn {
+  background: linear-gradient(135deg, var(--amber) 0%, var(--pink) 100%) !important;
+  box-shadow: 0 0 30px rgba(245,158,11,0.3), 0 0 60px rgba(236,72,153,0.2) !important;
+}
+
+/* ====== 错题本屏 ====== */
+.wrong-review-badge {
+  color: var(--red); font-weight: 700; font-size: 0.9rem;
+  padding: 4px 16px; border-radius: 12px;
+  background: rgba(239,68,68,0.08);
+  border: 1px solid rgba(239,68,68,0.2);
+}
+
+/* 错题选项高亮 */
+.review-opt {
+  cursor: default !important;
+}
+.opt-label.wrong-option {
+  border-color: var(--red) !important;
+  background: rgba(239,68,68,0.08) !important;
+}
+.opt-label.wrong-option .opt-letter {
+  background: var(--red) !important;
+  color: #fff !important;
+}
+.opt-label.correct-option {
+  border-color: var(--green) !important;
+  background: rgba(16,185,129,0.08) !important;
+}
+.opt-label.correct-option .opt-letter {
+  background: var(--green) !important;
+  color: #fff !important;
+}
+.opt-mark {
+  font-size: 0.75rem;
+  margin-left: auto;
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+.opt-label.wrong-option .opt-mark {
+  color: var(--red);
+}
+.opt-label.correct-option .opt-mark {
+  color: var(--green);
+}
+
+/* 非选择题型错题答案区域 */
+.wrong-answer-section {
+  margin-top: 16px;
+  padding: 16px;
+  background: rgba(255,255,255,0.02);
+  border-radius: 10px;
+  border: 1px solid var(--border);
+}
+.wrong-answer-section .your-answer {
+  color: var(--red);
+  margin-bottom: 8px;
+  font-size: 0.9rem;
+}
+.wrong-answer-section .correct-answer {
+  color: var(--green);
+  font-size: 0.9rem;
+}
+
+/* 错题解析 */
+.wrong-explanation {
+  margin-top: 16px;
+  padding: 14px 16px;
+  background: rgba(168,85,247,0.06);
+  border: 1px solid rgba(168,85,247,0.15);
+  border-radius: 10px;
+  color: var(--purple-bright);
+  font-size: 0.88rem;
+  line-height: 1.6;
+}
+
+/* 错题本空状态 */
+.wrong-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text-dim);
+  font-size: 1.1rem;
+  gap: 16px;
+}
+.wrong-empty-icon {
+  font-size: 3rem;
+  opacity: 0.4;
+}
+
+/* 错题页响应式 */
+@media (max-width:768px) {
+  .wrong-review-badge {
+    font-size: 0.75rem;
+    padding: 2px 10px;
+  }
+}

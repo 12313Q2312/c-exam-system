@@ -546,6 +546,8 @@ function gradeExam() {
   examState.totalScore = totalScore;
   examState.totalMax = Object.values(typeMax).reduce((a, b) => a + b, 0);
   examState.wrongQs = wrongQs;
+  // 保存错题到本地存储
+  saveWrongQuestions(wrongQs);
   examState.graded = true;
 
   // 保存成绩
@@ -1012,4 +1014,209 @@ document.addEventListener('keydown', function(e) {
     requestAnimationFrame(animate);
   }
   animate();
+})();
+
+// ====== 错题本 (Wrong Question Review) ======
+let wrongReviewState = {
+  questions: [],
+  currentPage: 0
+};
+
+// 保存错题到本地存储
+function saveWrongQuestions(wrongQs) {
+  if (!currentStudent || !currentStudent.stuid) return;
+  const key = 'exam_wrong_questions_' + currentStudent.stuid + '_' + currentStudent.name;
+  try {
+    localStorage.setItem(key, JSON.stringify(wrongQs));
+    localStorage.setItem('exam_last_wrong_key', key);
+  } catch (e) {}
+}
+
+// 加载错题
+function loadWrongQuestions() {
+  const key = localStorage.getItem('exam_last_wrong_key');
+  if (!key) return [];
+  try {
+    const data = localStorage.getItem(key);
+    return data ? JSON.parse(data) : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+// 打开错题本
+function openWrongReview() {
+  const wrongQs = loadWrongQuestions();
+  if (!wrongQs || wrongQs.length === 0) {
+    wrongReviewState = { questions: [], currentPage: 0 };
+    const card = document.getElementById('wrong-qcard-current');
+    card.innerHTML = '<div class="wrong-empty"><div class="wrong-empty-icon">📖</div><div>暂无错题记录，先做一套题吧！</div></div>';
+    document.getElementById('wrong-progress-total').textContent = '0';
+    document.getElementById('wrong-count-label').textContent = '共 0 道错题';
+    document.getElementById('wrong-page-dots').innerHTML = '';
+    document.getElementById('wrong-btn-prev').disabled = true;
+    document.getElementById('wrong-btn-next').disabled = true;
+    document.getElementById('wrong-progress-current').textContent = '0';
+    switchScreen('wrong-review-screen');
+    return;
+  }
+
+  wrongReviewState = {
+    questions: wrongQs,
+    currentPage: 0
+  };
+
+  document.getElementById('wrong-progress-total').textContent = wrongQs.length;
+  document.getElementById('wrong-count-label').textContent = '共 ' + wrongQs.length + ' 道错题';
+  renderWrongPageDots();
+  renderWrongQuestion();
+  switchScreen('wrong-review-screen');
+}
+
+// 关闭错题本
+function closeWrongReview() {
+  wrongReviewState = { questions: [], currentPage: 0 };
+  switchScreen('home-screen');
+}
+
+// 渲染错题内容
+function renderWrongQuestion() {
+  const p = wrongReviewState.currentPage;
+  const qs = wrongReviewState.questions;
+  if (qs.length === 0) return;
+  const w = qs[p];
+  const card = document.getElementById('wrong-qcard-current');
+
+  let html = '<div class="q-header">' +
+    '<span class="q-num">' + (p + 1) + '</span>' +
+    '<span class="q-type-tag">' + escapeHtml(w.typeLabel) + '</span>' +
+    '<span class="q-score" style="color:var(--red);">扣 ' + w.score + ' 分</span>' +
+  '</div>';
+
+  // 选择题（有 options）
+  if (w.options) {
+    html += '<div class="q-body">' + escapeHtml(w.question) + '</div><div class="options">';
+    const userLetter = String(w.userAnswer || '').charAt(0);
+    const correctLetter = String(w.correctAnswer || '').charAt(0);
+    ['A','B','C','D'].forEach(function(opt) {
+      if (w.options[opt]) {
+        var isUserAnswer = userLetter === opt;
+        var isCorrectAnswer = correctLetter === opt;
+        var extraClass = ' review-opt';
+        if (isUserAnswer) extraClass += ' wrong-option';
+        if (isCorrectAnswer) extraClass += ' correct-option';
+
+        var markHtml = '';
+        if (isUserAnswer) markHtml = '<span class="opt-mark">❌ 你的答案</span>';
+        if (isCorrectAnswer) markHtml = '<span class="opt-mark">✅ 正确答案</span>';
+
+        html += '<div class="opt-label' + extraClass + '">' +
+          '<span class="opt-letter">' + opt + '</span>' +
+          '<span>' + escapeHtml(w.options[opt]) + '</span>' +
+          markHtml +
+        '</div>';
+      }
+    });
+    html += '</div>';
+  } else {
+    // 非选择题（填空、程序阅读、程序补全）
+    var isProgFill = w.type === 'c_prog_fill';
+    html += '<div class="q-body">' + formatProgramQuestion(w.question, isProgFill) + '</div>';
+    html += '<div class="wrong-answer-section">' +
+      '<div class="your-answer">❌ 你的答案：' + escapeHtml(w.userAnswer) + '</div>' +
+      '<div class="correct-answer">✅ 正确答案：' + escapeHtml(w.correctAnswer) + '</div>' +
+    '</div>';
+  }
+
+  // 解析
+  if (w.explanation && w.explanation.trim()) {
+    html += '<div class="wrong-explanation">💡 解析：' + escapeHtml(w.explanation) + '</div>';
+  }
+
+  card.innerHTML = html;
+  updateWrongPageIndicator();
+}
+
+// 错题页码点
+function renderWrongPageDots() {
+  var dotsEl = document.getElementById('wrong-page-dots');
+  var qs = wrongReviewState.questions;
+  dotsEl.innerHTML = qs.map(function(q, i) {
+    return '<span class="page-dot" data-page="' + i + '" onclick="jumpToWrongQuestion(' + i + ')" title="第' + (i+1) + '题"></span>';
+  }).join('');
+  updateWrongPageIndicator();
+}
+
+// 更新错题指示器
+function updateWrongPageIndicator() {
+  var p = wrongReviewState.currentPage;
+  document.getElementById('wrong-progress-current').textContent = p + 1;
+
+  var dots = document.querySelectorAll('#wrong-page-dots .page-dot');
+  for (var i = 0; i < dots.length; i++) {
+    dots[i].classList.toggle('current', i === p);
+  }
+
+  document.getElementById('wrong-btn-prev').disabled = p <= 0;
+  document.getElementById('wrong-btn-next').disabled = p >= wrongReviewState.questions.length - 1;
+}
+
+// 错题导航
+function nextWrongQuestion() {
+  if (wrongReviewState.currentPage >= wrongReviewState.questions.length - 1) return;
+  if (wrongReviewState.questions.length === 0) return;
+  wrongReviewState.currentPage++;
+  renderWrongQuestion();
+  updateWrongPageIndicator();
+}
+
+function prevWrongQuestion() {
+  if (wrongReviewState.currentPage <= 0) return;
+  if (wrongReviewState.questions.length === 0) return;
+  wrongReviewState.currentPage--;
+  renderWrongQuestion();
+  updateWrongPageIndicator();
+}
+
+function jumpToWrongQuestion(targetPage) {
+  if (targetPage < 0 || targetPage >= wrongReviewState.questions.length) return;
+  if (wrongReviewState.questions.length === 0) return;
+  wrongReviewState.currentPage = targetPage;
+  renderWrongQuestion();
+  updateWrongPageIndicator();
+}
+
+// 清空错题本
+function clearWrongQuestions() {
+  if (wrongReviewState.questions.length === 0) return;
+  if (!confirm('确定要清空错题本吗？此操作不可恢复。')) return;
+  var key = localStorage.getItem('exam_last_wrong_key');
+  if (key) localStorage.removeItem(key);
+  wrongReviewState = { questions: [], currentPage: 0 };
+  closeWrongReview();
+}
+
+// 错题键盘快捷键
+document.addEventListener('keydown', function(e) {
+  if (!document.getElementById('wrong-review-screen').classList.contains('active')) return;
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === 'PageDown') { e.preventDefault(); nextWrongQuestion(); }
+  else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp' || e.key === 'PageUp') { e.preventDefault(); prevWrongQuestion(); }
+});
+
+// 错题触屏滑动
+(function initWrongSwipe() {
+  var touchStartX = 0, touchStartY = 0;
+  document.addEventListener('touchstart', function(e) {
+    if (!document.getElementById('wrong-review-screen').classList.contains('active')) return;
+    touchStartX = e.touches[0].clientX; touchStartY = e.touches[0].clientY;
+  }, { passive:true });
+  document.addEventListener('touchend', function(e) {
+    if (!document.getElementById('wrong-review-screen').classList.contains('active')) return;
+    var dx = (e.changedTouches[0]?.clientX || touchStartX) - touchStartX;
+    var dy = (e.changedTouches[0]?.clientY || touchStartY) - touchStartY;
+    if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 50) {
+      if (dx < -30) nextWrongQuestion(); else if (dx > 30) prevWrongQuestion();
+    }
+  });
 })();
