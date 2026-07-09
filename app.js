@@ -507,8 +507,8 @@ function gradeExam() {
         const perBlankScore = cfg.score; // 每空3分
         let hasWrongBlank = false;
         userDisplay = []; correctDisplay = [];
-        blanks.forEach(b => {
-          const ua = String((userAns && userAns[b.position - 1]) || '').trim();
+        blanks.forEach((b, bi) => {
+          const ua = String((userAns && userAns[bi]) || '').trim();
           const acceptable = b.acceptable_answers || [b.answer];
           userDisplay.push(`空${b.position}: ${ua || '未作答'}`);
           correctDisplay.push(`空${b.position}: ${acceptable.join(' 或 ')}`);
@@ -561,7 +561,7 @@ function gradeExam() {
   showResult();
 }
 
-function normalizeAnswer(s) { return String(s).replace(/\s+/g, '').toLowerCase(); }
+function normalizeAnswer(s) { return String(s).trim().replace(/\s+/g, ' ').toLowerCase(); }
 
 // ====== 显示成绩 ======
 function showResult() {
