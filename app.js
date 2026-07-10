@@ -502,13 +502,12 @@ function gradeExam() {
         break;
       }
       case 'c_prog_fill': {
-        // 逐空计分：每空3分，独立评分
         const blanks = q.data.blanks || [];
-        const perBlankScore = cfg.score; // 每空3分
+        const perBlankScore = cfg.score;
         let hasWrongBlank = false;
         userDisplay = []; correctDisplay = [];
-        blanks.forEach(b => {
-          const ua = String((userAns && userAns[b.position - 1]) || '').trim();
+        blanks.forEach((b, bi) => {
+          const ua = String((userAns && userAns[bi]) || '').trim();
           const acceptable = b.acceptable_answers || [b.answer];
           userDisplay.push(`空${b.position}: ${ua || '未作答'}`);
           correctDisplay.push(`空${b.position}: ${acceptable.join(' 或 ')}`);
