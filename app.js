@@ -457,8 +457,32 @@ function submitExam() {
 }
 
 function closeModal() { document.getElementById('confirm-modal').classList.remove('show'); }
-function confirmSubmit() { closeModal(); clearInterval(examState.timerInterval); examState.submitted = true; gradeExam(); }
+function confirmSubmit() {
+  closeModal();
+  if (pendingConfirmCallback) {
+    pendingConfirmCallback();
+    pendingConfirmCallback = null;
+  } else {
+    clearInterval(examState.timerInterval);
+    examState.submitted = true;
+    gradeExam();
+  }
+}
 function autoSubmit() { clearInterval(examState.timerInterval); examState.submitted = true; gradeExam(); }
+
+let pendingConfirmCallback = null;
+function showConfirm(message, callback) {
+  document.getElementById('confirm-info').textContent = message;
+  pendingConfirmCallback = callback;
+  document.getElementById('confirm-modal').classList.add('show');
+}
+function handleConfirm() {
+  closeModal();
+  if (pendingConfirmCallback) {
+    pendingConfirmCallback();
+    pendingConfirmCallback = null;
+  }
+}
 
 // ====== 判卷 ======
 function gradeExam() {
@@ -507,8 +531,8 @@ function gradeExam() {
         const perBlankScore = cfg.score; // 每空3分
         let hasWrongBlank = false;
         userDisplay = []; correctDisplay = [];
-        blanks.forEach(b => {
-          const ua = String((userAns && userAns[b.position - 1]) || '').trim();
+        blanks.forEach((b, bi) => {
+          const ua = String((userAns && userAns[bi]) || '').trim();
           const acceptable = b.acceptable_answers || [b.answer];
           userDisplay.push(`空${b.position}: ${ua || '未作答'}`);
           correctDisplay.push(`空${b.position}: ${acceptable.join(' 或 ')}`);
@@ -1189,11 +1213,12 @@ function jumpToWrongQuestion(targetPage) {
 // 清空错题本
 function clearWrongQuestions() {
   if (wrongReviewState.questions.length === 0) return;
-  if (!confirm('确定要清空错题本吗？此操作不可恢复。')) return;
-  var key = localStorage.getItem('exam_last_wrong_key');
-  if (key) localStorage.removeItem(key);
-  wrongReviewState = { questions: [], currentPage: 0 };
-  closeWrongReview();
+  showConfirm('确定要清空错题本吗？此操作不可恢复。', function() {
+    var key = localStorage.getItem('exam_last_wrong_key');
+    if (key) localStorage.removeItem(key);
+    wrongReviewState = { questions: [], currentPage: 0 };
+    closeWrongReview();
+  });
 }
 
 // 错题键盘快捷键
