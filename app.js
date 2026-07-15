@@ -223,10 +223,11 @@ function renderQuestionContent(q) {
       if (qdata.blanks) {
         qdata.blanks.forEach((b, bi) => {
           const savedAns = examState.answers[qid] || {};
-          const val = escapeAttr(savedAns[bi] || '');
+          const blankKey = b.position - 1;
+          const val = escapeAttr(savedAns[blankKey] || '');
           bodyHtml += `<div class="fill-block">
-            <span class="fill-block-label">填空 ${bi+1}</span>
-            <textarea class="code-fill-input" data-qid="${qid}" data-blank="${bi}"
+            <span class="fill-block-label">填空 ${b.position}</span>
+            <textarea class="code-fill-input" data-qid="${qid}" data-blank="${blankKey}"
               placeholder="请输入代码片段..." autocomplete="off" rows="2">${val}</textarea>
           </div>`;
         });
