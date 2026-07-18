@@ -502,17 +502,25 @@ function gradeExam() {
         break;
       }
       case 'c_prog_fill': {
-        // 逐空计分：每空3分，独立评分
         const blanks = q.data.blanks || [];
-        const perBlankScore = cfg.score; // 每空3分
+        const perBlankScore = cfg.score;
         let hasWrongBlank = false;
         userDisplay = []; correctDisplay = [];
-        blanks.forEach(b => {
-          const ua = String((userAns && userAns[b.position - 1]) || '').trim();
-          const acceptable = b.acceptable_answers || [b.answer];
+        blanks.forEach((b, bi) => {
+          const ua = String((userAns && userAns[bi]) || '').trim();
+          let acceptable = [];
+          if (b.acceptable_answers) {
+            const raw = Array.isArray(b.acceptable_answers) ? b.acceptable_answers : [b.acceptable_answers];
+            raw.forEach(a => {
+              const parts = String(a).split('|');
+              acceptable.push(...parts);
+            });
+          } else if (b.answer) {
+            acceptable = [b.answer];
+          }
           userDisplay.push(`空${b.position}: ${ua || '未作答'}`);
           correctDisplay.push(`空${b.position}: ${acceptable.join(' 或 ')}`);
-          const blankCorrect = acceptable.some(a => normalizeAnswer(ua) === normalizeAnswer(a));
+          const blankCorrect = acceptable.length > 0 && acceptable.some(a => normalizeAnswer(ua) === normalizeAnswer(a));
           if (blankCorrect) {
             questionScore += perBlankScore;
           } else {
@@ -1096,8 +1104,8 @@ function renderWrongQuestion() {
   // 选择题（有 options）
   if (w.options) {
     html += '<div class="q-body">' + escapeHtml(w.question) + '</div><div class="options">';
-    const userLetter = String(w.userAnswer || '').charAt(0);
-    const correctLetter = String(w.correctAnswer || '').charAt(0);
+    const userLetter = String(w.userAnswer || '').replace(/\s.*$/, '');
+    const correctLetter = String(w.correctAnswer || '').replace(/\s.*$/, '');
     ['A','B','C','D'].forEach(function(opt) {
       if (w.options[opt]) {
         var isUserAnswer = userLetter === opt;
