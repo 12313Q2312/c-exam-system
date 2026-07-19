@@ -100,7 +100,8 @@ function startExam() {
     qs.push({ type:'c_prog_read', globalIdx:idx++, data:q, score:EXAM_CONFIG.c_prog_read.score });
   });
   pickRandom(window.C_QUESTIONS.program_fill, EXAM_CONFIG.c_prog_fill.count).forEach(q => {
-    qs.push({ type:'c_prog_fill', globalIdx:idx++, data:q, score:EXAM_CONFIG.c_prog_fill.score });
+    const blankCount = q.blanks ? q.blanks.length : 0;
+    qs.push({ type:'c_prog_fill', globalIdx:idx++, data:q, score:EXAM_CONFIG.c_prog_fill.score * blankCount });
   });
 
   examState = {
@@ -179,10 +180,16 @@ function renderQuestionContent(q) {
   const qid = q.globalIdx;
   const qdata = q.data;
 
+  let questionScore = cfg.score;
+  if (q.type === 'c_prog_fill') {
+    const blankCount = qdata.blanks ? qdata.blanks.length : 0;
+    questionScore = cfg.score * blankCount;
+  }
+
   const headerHtml = `<div class="q-header">
     <span class="q-num">${qid + 1}</span>
     <span class="q-type-tag">${cfg.label}</span>
-    <span class="q-score">${cfg.score} 分</span>
+    <span class="q-score">${questionScore} 分</span>
   </div>`;
 
   let bodyHtml = '';
