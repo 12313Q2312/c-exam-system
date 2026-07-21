@@ -222,11 +222,12 @@ function renderQuestionContent(q) {
       bodyHtml = formatProgramQuestion(qdata.question, true);
       if (qdata.blanks) {
         qdata.blanks.forEach((b, bi) => {
+          const blankKey = b.position - 1;
           const savedAns = examState.answers[qid] || {};
-          const val = escapeAttr(savedAns[bi] || '');
+          const val = escapeAttr(savedAns[blankKey] || '');
           bodyHtml += `<div class="fill-block">
             <span class="fill-block-label">填空 ${bi+1}</span>
-            <textarea class="code-fill-input" data-qid="${qid}" data-blank="${bi}"
+            <textarea class="code-fill-input" data-qid="${qid}" data-blank="${blankKey}"
               placeholder="请输入代码片段..." autocomplete="off" rows="2">${val}</textarea>
           </div>`;
         });
@@ -502,9 +503,8 @@ function gradeExam() {
         break;
       }
       case 'c_prog_fill': {
-        // 逐空计分：每空3分，独立评分
         const blanks = q.data.blanks || [];
-        const perBlankScore = cfg.score; // 每空3分
+        const perBlankScore = blanks.length > 0 ? cfg.score / blanks.length : cfg.score;
         let hasWrongBlank = false;
         userDisplay = []; correctDisplay = [];
         blanks.forEach(b => {
@@ -522,7 +522,7 @@ function gradeExam() {
         });
         userDisplay = userDisplay.join('; ');
         correctDisplay = correctDisplay.join('; ');
-        isCorrect = !hasWrongBlank; // 全对才标记为正确
+        isCorrect = !hasWrongBlank;
         break;
       }
     }
