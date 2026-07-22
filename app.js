@@ -1096,7 +1096,7 @@ function renderWrongQuestion() {
   // 选择题（有 options）
   if (w.options) {
     html += '<div class="q-body">' + escapeHtml(w.question) + '</div><div class="options">';
-    const userLetter = String(w.userAnswer || '').charAt(0);
+    const userLetter = /^[ABCD]$/.test(String(w.userAnswer || '')) ? String(w.userAnswer) : '';
     const correctLetter = String(w.correctAnswer || '').charAt(0);
     ['A','B','C','D'].forEach(function(opt) {
       if (w.options[opt]) {
