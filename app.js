@@ -457,8 +457,8 @@ function submitExam() {
 }
 
 function closeModal() { document.getElementById('confirm-modal').classList.remove('show'); }
-function confirmSubmit() { closeModal(); clearInterval(examState.timerInterval); examState.submitted = true; gradeExam(); }
-function autoSubmit() { clearInterval(examState.timerInterval); examState.submitted = true; gradeExam(); }
+function confirmSubmit() { if (examState.submitted) return; closeModal(); clearInterval(examState.timerInterval); examState.submitted = true; gradeExam(); }
+function autoSubmit() { if (examState.submitted) return; closeModal(); clearInterval(examState.timerInterval); examState.submitted = true; gradeExam(); }
 
 // ====== 判卷 ======
 function gradeExam() {
