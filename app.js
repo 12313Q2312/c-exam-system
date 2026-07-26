@@ -269,9 +269,13 @@ function saveCurrentAnswers() {
   const card = document.getElementById('qcard-current');
   if (!card) return;
   const checked = card.querySelector('input[type="radio"]:checked');
-  if (checked) { examState.answers[parseInt(checked.name.replace('q',''))] = checked.value; }
+  if (checked) { 
+    const qid = parseInt(checked.name.replace('q',''));
+    if (!isNaN(qid)) examState.answers[qid] = checked.value;
+  }
   card.querySelectorAll('input[type="text"], textarea').forEach(inp => {
     const qid = parseInt(inp.dataset.qid);
+    if (isNaN(qid)) return;
     const blankPos = inp.dataset.blank;
     if (blankPos !== undefined) {
       if (!examState.answers[qid]) examState.answers[qid] = {};
@@ -507,8 +511,8 @@ function gradeExam() {
         const perBlankScore = cfg.score; // 每空3分
         let hasWrongBlank = false;
         userDisplay = []; correctDisplay = [];
-        blanks.forEach(b => {
-          const ua = String((userAns && userAns[b.position - 1]) || '').trim();
+        blanks.forEach((b, bi) => {
+          const ua = String((userAns && userAns[bi]) || '').trim();
           const acceptable = b.acceptable_answers || [b.answer];
           userDisplay.push(`空${b.position}: ${ua || '未作答'}`);
           correctDisplay.push(`空${b.position}: ${acceptable.join(' 或 ')}`);
@@ -550,13 +554,15 @@ function gradeExam() {
   saveWrongQuestions(wrongQs);
   examState.graded = true;
 
-  // 保存成绩
+  const recordId = Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
   saveScoreRecord({
+    id: recordId,
     name: currentStudent.name,
     stuid: currentStudent.stuid,
     score: totalScore,
     time: new Date().toISOString()
   });
+  examState.currentRecordId = recordId;
 
   showResult();
 }
@@ -905,7 +911,7 @@ function showLeaderboard() {
         month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit'
       });
 
-      const isCurrent = r.name === currentStudent.name && r.stuid === currentStudent.stuid && r.score === examState.totalScore;
+      const isCurrent = r.id === examState.currentRecordId;
       const rowClass = isCurrent ? ' class="current-student"' : '';
 
       return `<tr${rowClass}>
