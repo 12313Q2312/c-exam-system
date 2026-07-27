@@ -179,10 +179,14 @@ function renderQuestionContent(q) {
   const qid = q.globalIdx;
   const qdata = q.data;
 
+  let scoreDisplay = cfg.score;
+  if (q.type === 'c_prog_fill' && qdata.blanks) {
+    scoreDisplay = cfg.score * qdata.blanks.length;
+  }
   const headerHtml = `<div class="q-header">
     <span class="q-num">${qid + 1}</span>
     <span class="q-type-tag">${cfg.label}</span>
-    <span class="q-score">${cfg.score} 分</span>
+    <span class="q-score">${scoreDisplay} 分</span>
   </div>`;
 
   let bodyHtml = '';
@@ -223,10 +227,11 @@ function renderQuestionContent(q) {
       if (qdata.blanks) {
         qdata.blanks.forEach((b, bi) => {
           const savedAns = examState.answers[qid] || {};
-          const val = escapeAttr(savedAns[bi] || '');
+          const ansKey = b.position - 1;
+          const val = escapeAttr(savedAns[ansKey] || '');
           bodyHtml += `<div class="fill-block">
             <span class="fill-block-label">填空 ${bi+1}</span>
-            <textarea class="code-fill-input" data-qid="${qid}" data-blank="${bi}"
+            <textarea class="code-fill-input" data-qid="${qid}" data-blank="${b.position}"
               placeholder="请输入代码片段..." autocomplete="off" rows="2">${val}</textarea>
           </div>`;
         });
@@ -255,7 +260,7 @@ function bindQuestionEvents(q) {
       const blankPos = this.dataset.blank;
       if (blankPos !== undefined) {
         if (!examState.answers[qid]) examState.answers[qid] = {};
-        examState.answers[qid][blankPos] = this.value;
+        examState.answers[qid][blankPos - 1] = this.value;
       } else {
         examState.answers[qid] = this.value;
       }
@@ -275,7 +280,7 @@ function saveCurrentAnswers() {
     const blankPos = inp.dataset.blank;
     if (blankPos !== undefined) {
       if (!examState.answers[qid]) examState.answers[qid] = {};
-      examState.answers[qid][blankPos] = inp.value;
+      examState.answers[qid][blankPos - 1] = inp.value;
     } else {
       examState.answers[qid] = inp.value;
     }
