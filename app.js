@@ -37,9 +37,15 @@ function getScoreHistory() {
 }
 
 function saveScoreRecord(record) {
-  const history = getScoreHistory();
-  history.push(record);
-  localStorage.setItem('exam_score_history', JSON.stringify(history));
+  try {
+    const history = getScoreHistory();
+    history.push(record);
+    localStorage.setItem('exam_score_history', JSON.stringify(history));
+  } catch (e) {
+    // localStorage 可能已满、被禁用（隐私模式）或超出配额；
+    // 此处静默失败，避免异常中断整个判分/展示流程。
+    // 判分结果仍保留在内存的 examState 中可正常展示。
+  }
 }
 
 // ====== 登录验证 ======
@@ -457,8 +463,8 @@ function submitExam() {
 }
 
 function closeModal() { document.getElementById('confirm-modal').classList.remove('show'); }
-function confirmSubmit() { closeModal(); clearInterval(examState.timerInterval); examState.submitted = true; gradeExam(); }
-function autoSubmit() { clearInterval(examState.timerInterval); examState.submitted = true; gradeExam(); }
+function confirmSubmit() { closeModal(); saveCurrentAnswers(); clearInterval(examState.timerInterval); examState.submitted = true; gradeExam(); }
+function autoSubmit() { saveCurrentAnswers(); clearInterval(examState.timerInterval); examState.submitted = true; gradeExam(); }
 
 // ====== 判卷 ======
 function gradeExam() {
