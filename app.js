@@ -26,6 +26,13 @@ let examState = {
   animating: false
 };
 
+// 烟花动画句柄追踪 — 用于在 restartExam/重放时正确清理 RAF 循环与 setTimeout
+let fireworksState = {
+  timeoutId: null,
+  rafId: null,
+  canvasRef: null
+};
+
 // ====== 本地存储 — 成绩记录 ======
 function getScoreHistory() {
   try {
@@ -37,9 +44,13 @@ function getScoreHistory() {
 }
 
 function saveScoreRecord(record) {
-  const history = getScoreHistory();
-  history.push(record);
-  localStorage.setItem('exam_score_history', JSON.stringify(history));
+  try {
+    const history = getScoreHistory();
+    history.push(record);
+    localStorage.setItem('exam_score_history', JSON.stringify(history));
+  } catch (e) {
+    // 容量超限或存储禁用时静默降级，不中断 gradeExam -> showResult 流程
+  }
 }
 
 // ====== 登录验证 ======
@@ -642,7 +653,9 @@ function showResult() {
 
   // 彩蛋：超过90%分放烟花
   if (percentage >= 0.9) {
-    setTimeout(() => launchFireworks(), 800);
+    // 清理任何之前挂起的延时，然后记录当前句柄
+    if (fireworksState.timeoutId) { clearTimeout(fireworksState.timeoutId); }
+    fireworksState.timeoutId = setTimeout(() => launchFireworks(), 800);
   }
 }
 
@@ -661,22 +674,37 @@ function animateNumber(elementId, from, to, duration) {
 function restartExam() {
   clearInterval(examState.timerInterval);
   examState = { questions:[], answers:{}, currentPage:0, timeLeft:TOTAL_TIME, timerInterval:null, submitted:false, animating:false, graded:false };
-  // 清理烟花canvas
-  const fc = document.getElementById('fireworks-canvas');
-  if (fc) fc.remove();
+  // 清理烟花：取消 800ms 延时、终止 RAF 循环、移除 canvas（防止 CPU/内存泄漏）
+  cleanupFireworks();
   switchScreen('home-screen');
+}
+
+// ====== 清理烟花动画：取消延时与 RAF 循环、移除 DOM ======
+function cleanupFireworks() {
+  if (fireworksState.timeoutId) {
+    clearTimeout(fireworksState.timeoutId);
+    fireworksState.timeoutId = null;
+  }
+  if (fireworksState.rafId) {
+    cancelAnimationFrame(fireworksState.rafId);
+    fireworksState.rafId = null;
+  }
+  if (fireworksState.canvasRef && fireworksState.canvasRef.parentNode) {
+    fireworksState.canvasRef.remove();
+  }
+  fireworksState.canvasRef = null;
 }
 
 // ====== 烟花彩蛋 (Canvas) ======
 function launchFireworks() {
-  // 创建烟花canvas
-  const existing = document.getElementById('fireworks-canvas');
-  if (existing) existing.remove();
+  // 先清理任何之前的动画与句柄，避免多个 RAF 循环并存
+  cleanupFireworks();
 
   const canvas = document.createElement('canvas');
   canvas.id = 'fireworks-canvas';
   canvas.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;z-index:2000;pointer-events:none;';
   document.body.appendChild(canvas);
+  fireworksState.canvasRef = canvas;
 
   const ctx = canvas.getContext('2d');
   canvas.width = window.innerWidth;
@@ -763,6 +791,11 @@ function launchFireworks() {
   const PHASE1_DURATION = 3500; // 3.5秒烟花
 
   function animate(now) {
+    // 安全出口：canvas 已从 DOM 移除（例如 restartExam 调用了 cleanupFireworks）
+    if (!canvas.parentNode || canvas !== fireworksState.canvasRef) {
+      fireworksState.rafId = null;
+      return;
+    }
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     const elapsed = now - particles[0]?.born || 0;
@@ -872,13 +905,18 @@ function launchFireworks() {
     }
 
     if (aliveCount > 0 || !phase2Started) {
-      requestAnimationFrame(animate);
+      fireworksState.rafId = requestAnimationFrame(animate);
     } else {
-      canvas.remove();
+      // 自然结束：清理并清空全局句柄
+      fireworksState.rafId = null;
+      if (canvas.parentNode) canvas.remove();
+      if (fireworksState.canvasRef === canvas) {
+        fireworksState.canvasRef = null;
+      }
     }
   }
 
-  requestAnimationFrame(animate);
+  fireworksState.rafId = requestAnimationFrame(animate);
 }
 
 // ====== 排行榜 ======
