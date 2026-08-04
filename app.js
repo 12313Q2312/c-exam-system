@@ -1034,8 +1034,14 @@ function saveWrongQuestions(wrongQs) {
 
 // 加载错题
 function loadWrongQuestions() {
-  const key = localStorage.getItem('exam_last_wrong_key');
-  if (!key) return [];
+  // 优先根据当前登录用户构造 key，避免串户（不同用户之间数据串扰）
+  let key = null;
+  if (currentStudent && currentStudent.stuid && currentStudent.name) {
+    key = 'exam_wrong_questions_' + currentStudent.stuid + '_' + currentStudent.name;
+  } else {
+    // 未登录状态：不读取任何用户的错题，避免泄漏上次用户数据
+    return [];
+  }
   try {
     const data = localStorage.getItem(key);
     return data ? JSON.parse(data) : [];
@@ -1190,8 +1196,14 @@ function jumpToWrongQuestion(targetPage) {
 function clearWrongQuestions() {
   if (wrongReviewState.questions.length === 0) return;
   if (!confirm('确定要清空错题本吗？此操作不可恢复。')) return;
-  var key = localStorage.getItem('exam_last_wrong_key');
-  if (key) localStorage.removeItem(key);
+  // 只清空当前登录用户的错题，避免误删其他用户的数据
+  if (currentStudent && currentStudent.stuid && currentStudent.name) {
+    var key = 'exam_wrong_questions_' + currentStudent.stuid + '_' + currentStudent.name;
+    localStorage.removeItem(key);
+    // 如果 last_wrong_key 正好是当前用户的，也同步清理
+    var lastKey = localStorage.getItem('exam_last_wrong_key');
+    if (lastKey === key) localStorage.removeItem('exam_last_wrong_key');
+  }
   wrongReviewState = { questions: [], currentPage: 0 };
   closeWrongReview();
 }
