@@ -760,6 +760,7 @@ function launchFireworks() {
 
   // 第二阶段标记
   let phase2Started = false;
+  let cleanupScheduled = false;  // 防止重复注册清理定时器
   const PHASE1_DURATION = 3500; // 3.5秒烟花
 
   function animate(now) {
@@ -862,7 +863,8 @@ function launchFireworks() {
       ctx.restore();
 
       // 渐隐canvas
-      if (glowAlpha >= 0.7) {
+      if (glowAlpha >= 0.7 && !cleanupScheduled) {
+        cleanupScheduled = true;
         setTimeout(() => {
           canvas.style.transition = 'opacity 2s';
           canvas.style.opacity = '0';
@@ -978,7 +980,8 @@ document.addEventListener('keydown', function(e) {
       this.x += this.vx; this.y += this.vy;
       const dx = mouseX - this.x, dy = mouseY - this.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
-      if (dist < 150) { this.vx += (dx / dist) * 0.015; this.vy += (dy / dist) * 0.015; }
+      // 加 dist > 0 防止除零 → 避免 NaN 传播导致幽灵粒子永久泄漏
+      if (dist < 150 && dist > 0) { this.vx += (dx / dist) * 0.015; this.vy += (dy / dist) * 0.015; }
       this.vx *= 0.99; this.vy *= 0.99;
       if (this.x < 0) this.x = canvas.width; if (this.x > canvas.width) this.x = 0;
       if (this.y < 0) this.y = canvas.height; if (this.y > canvas.height) this.y = 0;
@@ -1032,16 +1035,20 @@ function saveWrongQuestions(wrongQs) {
   } catch (e) {}
 }
 
-// 加载错题
+// 加载错题 — 按当前登录用户身份加载，杜绝跨用户数据泄露
 function loadWrongQuestions() {
-  const key = localStorage.getItem('exam_last_wrong_key');
-  if (!key) return [];
-  try {
-    const data = localStorage.getItem(key);
-    return data ? JSON.parse(data) : [];
-  } catch (e) {
-    return [];
+  if (currentStudent && currentStudent.stuid && currentStudent.name) {
+    // 登录用户：只加载属于该用户自己的错题
+    const identityKey = 'exam_wrong_questions_' + currentStudent.stuid + '_' + currentStudent.name;
+    try {
+      const data = localStorage.getItem(identityKey);
+      return data ? JSON.parse(data) : [];
+    } catch (e) {
+      return [];
+    }
   }
+  // 未登录状态：不加载任何用户的错题，避免泄露
+  return [];
 }
 
 // 打开错题本
