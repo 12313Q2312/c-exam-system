@@ -760,6 +760,7 @@ function launchFireworks() {
 
   // 第二阶段标记
   let phase2Started = false;
+  let fadeoutScheduled = false;  // 防重复：渐隐只调度一次
   const PHASE1_DURATION = 3500; // 3.5秒烟花
 
   function animate(now) {
@@ -861,8 +862,9 @@ function launchFireworks() {
       }
       ctx.restore();
 
-      // 渐隐canvas
-      if (glowAlpha >= 0.7) {
+      // 渐隐canvas（只调度一次，防泄漏）
+      if (glowAlpha >= 0.7 && !fadeoutScheduled) {
+        fadeoutScheduled = true;
         setTimeout(() => {
           canvas.style.transition = 'opacity 2s';
           canvas.style.opacity = '0';
