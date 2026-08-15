@@ -507,8 +507,8 @@ function gradeExam() {
         const perBlankScore = cfg.score; // 每空3分
         let hasWrongBlank = false;
         userDisplay = []; correctDisplay = [];
-        blanks.forEach(b => {
-          const ua = String((userAns && userAns[b.position - 1]) || '').trim();
+        blanks.forEach((b, blankIdx) => {
+          const ua = String((userAns && userAns[blankIdx]) || '').trim();
           const acceptable = b.acceptable_answers || [b.answer];
           userDisplay.push(`空${b.position}: ${ua || '未作答'}`);
           correctDisplay.push(`空${b.position}: ${acceptable.join(' 或 ')}`);
@@ -760,6 +760,7 @@ function launchFireworks() {
 
   // 第二阶段标记
   let phase2Started = false;
+  let fadeOutStarted = false;
   const PHASE1_DURATION = 3500; // 3.5秒烟花
 
   function animate(now) {
@@ -862,7 +863,8 @@ function launchFireworks() {
       ctx.restore();
 
       // 渐隐canvas
-      if (glowAlpha >= 0.7) {
+      if (glowAlpha >= 0.7 && !fadeOutStarted) {
+        fadeOutStarted = true;
         setTimeout(() => {
           canvas.style.transition = 'opacity 2s';
           canvas.style.opacity = '0';
