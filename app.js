@@ -760,6 +760,7 @@ function launchFireworks() {
 
   // 第二阶段标记
   let phase2Started = false;
+  let fadeOutScheduled = false;
   const PHASE1_DURATION = 3500; // 3.5秒烟花
 
   function animate(now) {
@@ -820,7 +821,8 @@ function launchFireworks() {
         }
       } else if (p.phase === 'converge' && p.target) {
         const cAge = (now - p.convergeStart) / 1000;
-        const progress = Math.min(1, cAge / (p.convergeDuration / 1000));
+        const convergeDurSec = p.convergeDuration / 1000;
+        const progress = Math.min(1, cAge / convergeDurSec);
 
         // easeInOutCubic
         const eased = progress < 0.5
@@ -831,11 +833,13 @@ function launchFireworks() {
         p.y = p.startY + (p.target.y - p.startY) * eased;
 
         const alpha = progress < 0.9 ? 0.9 : 0.9 * (1 - (progress - 0.9) / 0.1);
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-        ctx.fillStyle = `hsla(${p.hue},100%,65%,${Math.max(0, alpha)})`;
-        ctx.fill();
-        aliveCount++;
+        if (alpha > 0.01) {
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+          ctx.fillStyle = `hsla(${p.hue},100%,65%,${Math.max(0, alpha)})`;
+          ctx.fill();
+          aliveCount++;
+        }
       }
     });
 
@@ -861,8 +865,9 @@ function launchFireworks() {
       }
       ctx.restore();
 
-      // 渐隐canvas
-      if (glowAlpha >= 0.7) {
+      // 渐隐canvas — 仅调度一次防止创建数千个计时器
+      if (glowAlpha >= 0.7 && !fadeOutScheduled) {
+        fadeOutScheduled = true;
         setTimeout(() => {
           canvas.style.transition = 'opacity 2s';
           canvas.style.opacity = '0';
@@ -978,7 +983,7 @@ document.addEventListener('keydown', function(e) {
       this.x += this.vx; this.y += this.vy;
       const dx = mouseX - this.x, dy = mouseY - this.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
-      if (dist < 150) { this.vx += (dx / dist) * 0.015; this.vy += (dy / dist) * 0.015; }
+      if (dist > 0.01 && dist < 150) { this.vx += (dx / dist) * 0.015; this.vy += (dy / dist) * 0.015; }
       this.vx *= 0.99; this.vy *= 0.99;
       if (this.x < 0) this.x = canvas.width; if (this.x > canvas.width) this.x = 0;
       if (this.y < 0) this.y = canvas.height; if (this.y > canvas.height) this.y = 0;
