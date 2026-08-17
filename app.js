@@ -1019,13 +1019,21 @@ document.addEventListener('keydown', function(e) {
 // ====== 错题本 (Wrong Question Review) ======
 let wrongReviewState = {
   questions: [],
-  currentPage: 0
+  currentPage: 0,
+  loadedKey: null
 };
+
+function getCurrentStudentWrongKey() {
+  if (currentStudent && currentStudent.stuid && currentStudent.name) {
+    return 'exam_wrong_questions_' + currentStudent.stuid + '_' + currentStudent.name;
+  }
+  return null;
+}
 
 // 保存错题到本地存储
 function saveWrongQuestions(wrongQs) {
-  if (!currentStudent || !currentStudent.stuid) return;
-  const key = 'exam_wrong_questions_' + currentStudent.stuid + '_' + currentStudent.name;
+  const key = getCurrentStudentWrongKey();
+  if (!key) return;
   try {
     localStorage.setItem(key, JSON.stringify(wrongQs));
     localStorage.setItem('exam_last_wrong_key', key);
@@ -1034,8 +1042,15 @@ function saveWrongQuestions(wrongQs) {
 
 // 加载错题
 function loadWrongQuestions() {
-  const key = localStorage.getItem('exam_last_wrong_key');
-  if (!key) return [];
+  const ownKey = getCurrentStudentWrongKey();
+  let key;
+  if (ownKey) {
+    key = ownKey;
+  } else {
+    key = localStorage.getItem('exam_last_wrong_key');
+  }
+  if (!key) { wrongReviewState.loadedKey = null; return []; }
+  wrongReviewState.loadedKey = key;
   try {
     const data = localStorage.getItem(key);
     return data ? JSON.parse(data) : [];
@@ -1047,8 +1062,9 @@ function loadWrongQuestions() {
 // 打开错题本
 function openWrongReview() {
   const wrongQs = loadWrongQuestions();
+  const loadedKey = wrongReviewState.loadedKey;
   if (!wrongQs || wrongQs.length === 0) {
-    wrongReviewState = { questions: [], currentPage: 0 };
+    wrongReviewState = { questions: [], currentPage: 0, loadedKey: loadedKey };
     const card = document.getElementById('wrong-qcard-current');
     card.innerHTML = '<div class="wrong-empty"><div class="wrong-empty-icon">📖</div><div>暂无错题记录，先做一套题吧！</div></div>';
     document.getElementById('wrong-progress-total').textContent = '0';
@@ -1063,7 +1079,8 @@ function openWrongReview() {
 
   wrongReviewState = {
     questions: wrongQs,
-    currentPage: 0
+    currentPage: 0,
+    loadedKey: loadedKey
   };
 
   document.getElementById('wrong-progress-total').textContent = wrongQs.length;
@@ -1075,7 +1092,7 @@ function openWrongReview() {
 
 // 关闭错题本
 function closeWrongReview() {
-  wrongReviewState = { questions: [], currentPage: 0 };
+  wrongReviewState = { questions: [], currentPage: 0, loadedKey: null };
   switchScreen('home-screen');
 }
 
@@ -1190,9 +1207,14 @@ function jumpToWrongQuestion(targetPage) {
 function clearWrongQuestions() {
   if (wrongReviewState.questions.length === 0) return;
   if (!confirm('确定要清空错题本吗？此操作不可恢复。')) return;
-  var key = localStorage.getItem('exam_last_wrong_key');
+  var key = wrongReviewState.loadedKey;
+  if (!key) {
+    var ownKey = getCurrentStudentWrongKey();
+    if (ownKey) key = ownKey;
+    else key = localStorage.getItem('exam_last_wrong_key');
+  }
   if (key) localStorage.removeItem(key);
-  wrongReviewState = { questions: [], currentPage: 0 };
+  wrongReviewState = { questions: [], currentPage: 0, loadedKey: null };
   closeWrongReview();
 }
 
