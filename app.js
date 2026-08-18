@@ -37,9 +37,13 @@ function getScoreHistory() {
 }
 
 function saveScoreRecord(record) {
-  const history = getScoreHistory();
-  history.push(record);
-  localStorage.setItem('exam_score_history', JSON.stringify(history));
+  try {
+    const history = getScoreHistory();
+    history.push(record);
+    localStorage.setItem('exam_score_history', JSON.stringify(history));
+  } catch (e) {
+    console.warn('保存成绩记录失败:', e);
+  }
 }
 
 // ====== 登录验证 ======
@@ -861,8 +865,9 @@ function launchFireworks() {
       }
       ctx.restore();
 
-      // 渐隐canvas
-      if (glowAlpha >= 0.7) {
+      // 渐隐canvas (仅触发一次，防止每帧重复创建setTimeout导致泄漏)
+      if (glowAlpha >= 0.7 && !canvas._fadeScheduled) {
+        canvas._fadeScheduled = true;
         setTimeout(() => {
           canvas.style.transition = 'opacity 2s';
           canvas.style.opacity = '0';
