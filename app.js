@@ -561,7 +561,7 @@ function gradeExam() {
   showResult();
 }
 
-function normalizeAnswer(s) { return String(s).replace(/\s+/g, '').toLowerCase(); }
+function normalizeAnswer(s) { return String(s).trim().replace(/\s+/g, ' ').toLowerCase(); }
 
 // ====== 显示成绩 ======
 function showResult() {
@@ -760,6 +760,7 @@ function launchFireworks() {
 
   // 第二阶段标记
   let phase2Started = false;
+  let fadeoutStarted = false;
   const PHASE1_DURATION = 3500; // 3.5秒烟花
 
   function animate(now) {
@@ -862,7 +863,8 @@ function launchFireworks() {
       ctx.restore();
 
       // 渐隐canvas
-      if (glowAlpha >= 0.7) {
+      if (glowAlpha >= 0.7 && !fadeoutStarted) {
+        fadeoutStarted = true;
         setTimeout(() => {
           canvas.style.transition = 'opacity 2s';
           canvas.style.opacity = '0';
@@ -1034,18 +1036,22 @@ function saveWrongQuestions(wrongQs) {
 
 // 加载错题
 function loadWrongQuestions() {
-  const key = localStorage.getItem('exam_last_wrong_key');
-  if (!key) return [];
-  try {
-    const data = localStorage.getItem(key);
-    return data ? JSON.parse(data) : [];
-  } catch (e) {
-    return [];
+  if (currentStudent && currentStudent.stuid) {
+    const userKey = 'exam_wrong_questions_' + currentStudent.stuid + '_' + currentStudent.name;
+    try {
+      const data = localStorage.getItem(userKey);
+      if (data) return JSON.parse(data);
+    } catch (e) {}
   }
+  return [];
 }
 
 // 打开错题本
 function openWrongReview() {
+  if (!currentStudent || !currentStudent.stuid) {
+    alert('请先登录后再查看错题本');
+    return;
+  }
   const wrongQs = loadWrongQuestions();
   if (!wrongQs || wrongQs.length === 0) {
     wrongReviewState = { questions: [], currentPage: 0 };
@@ -1188,10 +1194,13 @@ function jumpToWrongQuestion(targetPage) {
 
 // 清空错题本
 function clearWrongQuestions() {
+  if (!currentStudent || !currentStudent.stuid) return;
   if (wrongReviewState.questions.length === 0) return;
   if (!confirm('确定要清空错题本吗？此操作不可恢复。')) return;
-  var key = localStorage.getItem('exam_last_wrong_key');
-  if (key) localStorage.removeItem(key);
+  var key = 'exam_wrong_questions_' + currentStudent.stuid + '_' + currentStudent.name;
+  localStorage.removeItem(key);
+  var lastKey = localStorage.getItem('exam_last_wrong_key');
+  if (lastKey === key) localStorage.removeItem('exam_last_wrong_key');
   wrongReviewState = { questions: [], currentPage: 0 };
   closeWrongReview();
 }
