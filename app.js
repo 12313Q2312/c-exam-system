@@ -42,6 +42,54 @@ function saveScoreRecord(record) {
   localStorage.setItem('exam_score_history', JSON.stringify(history));
 }
 
+// ====== 本地存储 — 考试草稿（防刷新/崩溃数据丢失） ======
+function getDraftKey() {
+  if (!currentStudent || !currentStudent.stuid || !currentStudent.name) return null;
+  return 'exam_draft_' + currentStudent.stuid + '_' + currentStudent.name;
+}
+let _draftSaveTimer = null;
+function saveExamDraft() {
+  // 节流：最多 2s 一次，避免 localStorage 高频写入卡顿
+  if (_draftSaveTimer) return;
+  _draftSaveTimer = setTimeout(() => { _draftSaveTimer = null; _flushExamDraft(); }, 2000);
+}
+function _flushExamDraft() {
+  const key = getDraftKey();
+  if (!key) return;
+  if (examState.submitted || examState.graded) return;
+  try {
+    const payload = {
+      questions: examState.questions,
+      answers: examState.answers,
+      currentPage: examState.currentPage,
+      timeLeft: examState.timeLeft,
+      savedAt: Date.now()
+    };
+    localStorage.setItem(key, JSON.stringify(payload));
+  } catch (e) { /* 配额超限等静默忽略，不中断考试 */ }
+}
+function loadExamDraft() {
+  const key = getDraftKey();
+  if (!key) return null;
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+    if (!data || !data.questions || !data.questions.length) return null;
+    // 草稿超过 48 小时视为过期
+    if (data.savedAt && Date.now() - data.savedAt > 48 * 3600 * 1000) {
+      localStorage.removeItem(key);
+      return null;
+    }
+    return data;
+  } catch (e) { return null; }
+}
+function clearExamDraft() {
+  if (_draftSaveTimer) { clearTimeout(_draftSaveTimer); _draftSaveTimer = null; }
+  const key = getDraftKey();
+  if (key) { try { localStorage.removeItem(key); } catch (e) {} }
+}
+
 // ====== 登录验证 ======
 function confirmLogin() {
   const nameInput = document.getElementById('input-name');
@@ -79,17 +127,13 @@ function switchScreen(showId) {
 }
 
 // ====== 开始考试 ======
-function startExam() {
+function buildFreshQuestions() {
   const qs = [];
   let idx = 0;
-
   const shuffledAI = shuffle(window.AI_QUESTIONS);
-
-  // AI 选择题：全部20道
   shuffledAI.slice(0, EXAM_CONFIG.ai_danxuan.count).forEach(q => {
     qs.push({ type:'ai_danxuan', globalIdx:idx++, data:q, score:EXAM_CONFIG.ai_danxuan.score });
   });
-
   pickRandom(window.C_QUESTIONS.danxuan, EXAM_CONFIG.c_danxuan.count).forEach(q => {
     qs.push({ type:'c_danxuan', globalIdx:idx++, data:q, score:EXAM_CONFIG.c_danxuan.score });
   });
@@ -102,17 +146,52 @@ function startExam() {
   pickRandom(window.C_QUESTIONS.program_fill, EXAM_CONFIG.c_prog_fill.count).forEach(q => {
     qs.push({ type:'c_prog_fill', globalIdx:idx++, data:q, score:EXAM_CONFIG.c_prog_fill.score });
   });
+  const answers = {};
+  qs.forEach(q => {
+    if (q.type === 'c_prog_fill') { answers[q.globalIdx] = {}; }
+    else { answers[q.globalIdx] = ''; }
+  });
+  return { questions: qs, answers };
+}
+
+function startExam() {
+  let useDraft = false;
+  const draft = loadExamDraft();
+  if (draft) {
+    const mins = Math.max(0, Math.floor(draft.timeLeft / 60));
+    const secs = draft.timeLeft % 60;
+    const answered = Object.values(draft.answers).filter(a => {
+      if (typeof a === 'object') return Object.values(a).some(v => v && String(v).trim());
+      return a && String(a).trim();
+    }).length;
+    const msg = `检测到你有一份未提交的考试草稿：\n` +
+      `· 剩余时间：${mins}分${secs}秒\n` +
+      `· 已作答：${answered} / ${draft.questions.length} 题\n` +
+      `· 保存时间：${new Date(draft.savedAt).toLocaleString('zh-CN')}\n\n` +
+      `点击"确定"恢复答题进度，点击"取消"重新开始一套新题（旧草稿将被清除）。`;
+    useDraft = confirm(msg);
+  }
+
+  let qs, answers, startPage, timeLeft;
+  if (useDraft && draft) {
+    qs = draft.questions;
+    answers = draft.answers;
+    startPage = Math.min(draft.currentPage || 0, qs.length - 1);
+    timeLeft = Math.max(1, draft.timeLeft);
+  } else {
+    clearExamDraft();
+    const fresh = buildFreshQuestions();
+    qs = fresh.questions;
+    answers = fresh.answers;
+    startPage = 0;
+    timeLeft = TOTAL_TIME;
+  }
 
   examState = {
-    questions: qs, answers: {}, currentPage: 0,
-    timeLeft: TOTAL_TIME, timerInterval: null,
+    questions: qs, answers, currentPage: startPage,
+    timeLeft, timerInterval: null,
     submitted: false, animating: false
   };
-
-  qs.forEach(q => {
-    if (q.type === 'c_prog_fill') { examState.answers[q.globalIdx] = {}; }
-    else { examState.answers[q.globalIdx] = ''; }
-  });
 
   document.getElementById('progress-total').textContent = qs.length;
   renderPageFooter();
@@ -247,6 +326,7 @@ function bindQuestionEvents(q) {
     radio.addEventListener('change', function() {
       examState.answers[qid] = this.value;
       updatePageIndicator();
+      saveExamDraft();
     });
   });
 
@@ -260,6 +340,7 @@ function bindQuestionEvents(q) {
         examState.answers[qid] = this.value;
       }
       updatePageIndicator();
+      saveExamDraft();
     });
   });
 }
@@ -280,6 +361,7 @@ function saveCurrentAnswers() {
       examState.answers[qid] = inp.value;
     }
   });
+  saveExamDraft();
 }
 
 // ====== 翻页动画 ======
@@ -413,6 +495,8 @@ function startTimer() {
   examState.timerInterval = setInterval(() => {
     examState.timeLeft--;
     updateTimerDisplay();
+    // 每 5 秒强制落盘一次草稿，防止节流定时器漏存
+    if (examState.timeLeft % 5 === 0) _flushExamDraft();
     if (examState.timeLeft <= 0) { clearInterval(examState.timerInterval); autoSubmit(); }
   }, 1000);
 }
@@ -457,8 +541,8 @@ function submitExam() {
 }
 
 function closeModal() { document.getElementById('confirm-modal').classList.remove('show'); }
-function confirmSubmit() { closeModal(); clearInterval(examState.timerInterval); examState.submitted = true; gradeExam(); }
-function autoSubmit() { clearInterval(examState.timerInterval); examState.submitted = true; gradeExam(); }
+function confirmSubmit() { closeModal(); clearInterval(examState.timerInterval); examState.submitted = true; clearExamDraft(); gradeExam(); }
+function autoSubmit() { clearInterval(examState.timerInterval); examState.submitted = true; clearExamDraft(); gradeExam(); }
 
 // ====== 判卷 ======
 function gradeExam() {
@@ -660,6 +744,7 @@ function animateNumber(elementId, from, to, duration) {
 
 function restartExam() {
   clearInterval(examState.timerInterval);
+  clearExamDraft();
   examState = { questions:[], answers:{}, currentPage:0, timeLeft:TOTAL_TIME, timerInterval:null, submitted:false, animating:false, graded:false };
   // 清理烟花canvas
   const fc = document.getElementById('fireworks-canvas');
@@ -1032,9 +1117,14 @@ function saveWrongQuestions(wrongQs) {
   } catch (e) {}
 }
 
-// 加载错题
+// 加载错题 — 严格绑定当前登录学生，防止跨学生数据泄露
 function loadWrongQuestions() {
-  const key = localStorage.getItem('exam_last_wrong_key');
+  let key = null;
+  if (currentStudent && currentStudent.stuid && currentStudent.name) {
+    key = 'exam_wrong_questions_' + currentStudent.stuid + '_' + currentStudent.name;
+  } else {
+    key = localStorage.getItem('exam_last_wrong_key');
+  }
   if (!key) return [];
   try {
     const data = localStorage.getItem(key);
@@ -1186,11 +1276,16 @@ function jumpToWrongQuestion(targetPage) {
   updateWrongPageIndicator();
 }
 
-// 清空错题本
+// 清空错题本 — 严格绑定当前登录学生，防止误删其他学生数据
 function clearWrongQuestions() {
   if (wrongReviewState.questions.length === 0) return;
   if (!confirm('确定要清空错题本吗？此操作不可恢复。')) return;
-  var key = localStorage.getItem('exam_last_wrong_key');
+  let key = null;
+  if (currentStudent && currentStudent.stuid && currentStudent.name) {
+    key = 'exam_wrong_questions_' + currentStudent.stuid + '_' + currentStudent.name;
+  } else {
+    key = localStorage.getItem('exam_last_wrong_key');
+  }
   if (key) localStorage.removeItem(key);
   wrongReviewState = { questions: [], currentPage: 0 };
   closeWrongReview();
