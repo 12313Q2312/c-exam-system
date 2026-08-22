@@ -760,9 +760,11 @@ function launchFireworks() {
 
   // 第二阶段标记
   let phase2Started = false;
+  let fadeStarted = false;
   const PHASE1_DURATION = 3500; // 3.5秒烟花
 
   function animate(now) {
+    if (!canvas.isConnected) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     const elapsed = now - particles[0]?.born || 0;
@@ -861,9 +863,11 @@ function launchFireworks() {
       }
       ctx.restore();
 
-      // 渐隐canvas
-      if (glowAlpha >= 0.7) {
+      // 渐隐canvas（只执行一次，避免rAF每帧重复创建setTimeout导致雪崩堆积）
+      if (glowAlpha >= 0.7 && !fadeStarted) {
+        fadeStarted = true;
         setTimeout(() => {
+          if (!canvas.isConnected) return;
           canvas.style.transition = 'opacity 2s';
           canvas.style.opacity = '0';
           setTimeout(() => canvas.remove(), 2000);
@@ -871,9 +875,9 @@ function launchFireworks() {
       }
     }
 
-    if (aliveCount > 0 || !phase2Started) {
+    if (canvas.isConnected && (aliveCount > 0 || !phase2Started)) {
       requestAnimationFrame(animate);
-    } else {
+    } else if (canvas.isConnected) {
       canvas.remove();
     }
   }
