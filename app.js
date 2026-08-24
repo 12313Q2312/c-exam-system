@@ -350,18 +350,74 @@ function isQuestionAnswered(idx) {
 function formatProgramQuestion(questionText, isFill) {
   const lines = questionText.split('\n');
   let descLines = [], codeLines = [], inCode = false;
+  let braceDepth = 0;
+  let nonCodeStreak = 0;
+
+  function isCodeLike(t) {
+    return /^(#include|int\s+main|void\s+main|int\s+\w+\s*\(|void\s+\w+\s*\(|char\s+\w+\s*\(|float\s+\w+\s*\(|double\s+\w+\s*\()/.test(t)
+        || /^\{/.test(t) || /^\}/.test(t)
+        || /^(int|char|float|double|long|short|void|struct|enum|union|typedef|unsigned|signed|static|const|extern|volatile|auto|register)\s+/.test(t)
+        || /^(#\s*\w+)/.test(t)
+        || /[;{}]\s*$/.test(t)
+        || /^\s*(return|break|continue|goto|if|else|for|while|do|switch|case|default)\b/.test(t)
+        || /^\s*\w+\s*\(.*\)\s*;?\s*$/.test(t)
+        || /^(\+\+|--|[\w\]]+\s*[+\-*/%&|^<>=!]=?|#\s*\w+)/.test(t);
+  }
 
   for (const line of lines) {
     const trimmed = line.trim();
-    if (!trimmed) continue;
-    if (/^(#include|int\s+main|void\s+main|int\s+\w+\s*\(|void\s+\w+\s*\(|char\s+\w+\s*\()/.test(trimmed)
-        || /^\{/.test(trimmed) || /^\}/.test(trimmed)
-        || /^(int|char|float|double|long|void|struct)\s+/.test(trimmed)
-        || /^\s*\{/.test(trimmed)) {
-      inCode = true;
+
+    if (!trimmed) {
+      if (inCode) {
+        // 代码块内的空行保留（保持代码结构完整性）
+        codeLines.push(line);
+        nonCodeStreak = 0;
+      }
+      continue;
     }
-    if (inCode) { codeLines.push(line); }
-    else { descLines.push(trimmed); }
+
+    // 统计花括号深度，用于判断函数/代码块边界
+    for (const ch of trimmed) {
+      if (ch === '{') braceDepth++;
+      else if (ch === '}') braceDepth = Math.max(0, braceDepth - 1);
+    }
+
+    const looksLikeCode = isCodeLike(trimmed);
+
+    if (!inCode) {
+      if (looksLikeCode) {
+        inCode = true;
+        nonCodeStreak = 0;
+        codeLines.push(line);
+      } else {
+        descLines.push(trimmed);
+      }
+    } else {
+      // 已在代码块中
+      if (looksLikeCode || braceDepth > 0) {
+        // 代码行或仍在花括号内 → 继续视为代码
+        codeLines.push(line);
+        nonCodeStreak = 0;
+      } else {
+        // 非代码行且 braceDepth === 0，可能是代码后的描述
+        nonCodeStreak++;
+        if (nonCodeStreak >= 1) {
+          // 连续1行不像代码 + 括号已闭合 → 退出代码模式
+          // 把这一行（以及后续非代码行）放回描述
+          inCode = false;
+          // 回退：如果刚才这一行其实是纯中文/纯问题描述，则移出 codeLines
+          // （但因为刚进入这个分支，nonCodeStreak刚到1，当前行还没push过）
+          descLines.push(trimmed);
+        } else {
+          codeLines.push(line);
+        }
+      }
+    }
+  }
+
+  // 清理 codeLines 末尾的多余空行
+  while (codeLines.length > 0 && codeLines[codeLines.length - 1].trim() === '') {
+    codeLines.pop();
   }
 
   if (codeLines.length === 0) {
@@ -760,6 +816,7 @@ function launchFireworks() {
 
   // 第二阶段标记
   let phase2Started = false;
+  let fadeStarted = false;
   const PHASE1_DURATION = 3500; // 3.5秒烟花
 
   function animate(now) {
@@ -861,8 +918,9 @@ function launchFireworks() {
       }
       ctx.restore();
 
-      // 渐隐canvas
-      if (glowAlpha >= 0.7) {
+      // 渐隐canvas（只触发一次，避免每帧重复注册定时器）
+      if (glowAlpha >= 0.7 && !fadeStarted) {
+        fadeStarted = true;
         setTimeout(() => {
           canvas.style.transition = 'opacity 2s';
           canvas.style.opacity = '0';
@@ -978,7 +1036,7 @@ document.addEventListener('keydown', function(e) {
       this.x += this.vx; this.y += this.vy;
       const dx = mouseX - this.x, dy = mouseY - this.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
-      if (dist < 150) { this.vx += (dx / dist) * 0.015; this.vy += (dy / dist) * 0.015; }
+      if (dist < 150 && dist > 0) { this.vx += (dx / dist) * 0.015; this.vy += (dy / dist) * 0.015; }
       this.vx *= 0.99; this.vy *= 0.99;
       if (this.x < 0) this.x = canvas.width; if (this.x > canvas.width) this.x = 0;
       if (this.y < 0) this.y = canvas.height; if (this.y > canvas.height) this.y = 0;
