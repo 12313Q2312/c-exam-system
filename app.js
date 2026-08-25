@@ -223,10 +223,11 @@ function renderQuestionContent(q) {
       if (qdata.blanks) {
         qdata.blanks.forEach((b, bi) => {
           const savedAns = examState.answers[qid] || {};
-          const val = escapeAttr(savedAns[bi] || '');
+          const blankKey = String(b.position);
+          const val = escapeAttr(savedAns[blankKey] || '');
           bodyHtml += `<div class="fill-block">
-            <span class="fill-block-label">填空 ${bi+1}</span>
-            <textarea class="code-fill-input" data-qid="${qid}" data-blank="${bi}"
+            <span class="fill-block-label">填空 ${b.position}</span>
+            <textarea class="code-fill-input" data-qid="${qid}" data-blank="${blankKey}"
               placeholder="请输入代码片段..." autocomplete="off" rows="2">${val}</textarea>
           </div>`;
         });
@@ -508,7 +509,8 @@ function gradeExam() {
         let hasWrongBlank = false;
         userDisplay = []; correctDisplay = [];
         blanks.forEach(b => {
-          const ua = String((userAns && userAns[b.position - 1]) || '').trim();
+          const blankKey = String(b.position);
+          const ua = String((userAns && userAns[blankKey]) || '').trim();
           const acceptable = b.acceptable_answers || [b.answer];
           userDisplay.push(`空${b.position}: ${ua || '未作答'}`);
           correctDisplay.push(`空${b.position}: ${acceptable.join(' 或 ')}`);
@@ -1032,13 +1034,18 @@ function saveWrongQuestions(wrongQs) {
   } catch (e) {}
 }
 
-// 加载错题
+// 加载错题（仅加载当前登录用户的错题，防止跨用户隐私泄露）
 function loadWrongQuestions() {
-  const key = localStorage.getItem('exam_last_wrong_key');
-  if (!key) return [];
   try {
-    const data = localStorage.getItem(key);
-    return data ? JSON.parse(data) : [];
+    // 优先使用当前登录用户的 key
+    if (currentStudent && currentStudent.stuid && currentStudent.name) {
+      const userKey = 'exam_wrong_questions_' + currentStudent.stuid + '_' + currentStudent.name;
+      const data = localStorage.getItem(userKey);
+      if (data) return JSON.parse(data);
+      return [];
+    }
+    // 未登录时，仅当 last_key 存在且不读取（避免显示他人错题）
+    return [];
   } catch (e) {
     return [];
   }
@@ -1046,6 +1053,14 @@ function loadWrongQuestions() {
 
 // 打开错题本
 function openWrongReview() {
+  // 未登录时拒绝访问，避免泄露上一用户错题
+  if (!currentStudent || !currentStudent.stuid || !currentStudent.name) {
+    alert('请先输入姓名和学号登录后再查看错题本');
+    const nameInput = document.getElementById('input-name');
+    if (nameInput) nameInput.focus();
+    return;
+  }
+
   const wrongQs = loadWrongQuestions();
   if (!wrongQs || wrongQs.length === 0) {
     wrongReviewState = { questions: [], currentPage: 0 };
@@ -1186,12 +1201,16 @@ function jumpToWrongQuestion(targetPage) {
   updateWrongPageIndicator();
 }
 
-// 清空错题本
+// 清空错题本（仅清空当前登录用户的错题，防止误删他人数据）
 function clearWrongQuestions() {
   if (wrongReviewState.questions.length === 0) return;
+  if (!currentStudent || !currentStudent.stuid || !currentStudent.name) return;
   if (!confirm('确定要清空错题本吗？此操作不可恢复。')) return;
-  var key = localStorage.getItem('exam_last_wrong_key');
-  if (key) localStorage.removeItem(key);
+  var userKey = 'exam_wrong_questions_' + currentStudent.stuid + '_' + currentStudent.name;
+  localStorage.removeItem(userKey);
+  // 同步清理 last_key 指向（如果是当前用户的）
+  var lastKey = localStorage.getItem('exam_last_wrong_key');
+  if (lastKey === userKey) localStorage.removeItem('exam_last_wrong_key');
   wrongReviewState = { questions: [], currentPage: 0 };
   closeWrongReview();
 }
