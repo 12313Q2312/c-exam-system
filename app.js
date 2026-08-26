@@ -494,7 +494,7 @@ function gradeExam() {
       case 'c_prog_read': {
         questionMaxScore = cfg.score;
         const ua = String(userAns || '').trim();
-        const acceptable = q.data.acceptable_answers || [q.data.answer];
+        const acceptable = expandAcceptableAnswers(q.data.acceptable_answers || [q.data.answer]);
         userDisplay = ua || '未作答';
         correctDisplay = acceptable.join(' 或 ');
         isCorrect = acceptable.some(a => normalizeAnswer(ua) === normalizeAnswer(a));
@@ -509,7 +509,7 @@ function gradeExam() {
         userDisplay = []; correctDisplay = [];
         blanks.forEach(b => {
           const ua = String((userAns && userAns[b.position - 1]) || '').trim();
-          const acceptable = b.acceptable_answers || [b.answer];
+          const acceptable = expandAcceptableAnswers(b.acceptable_answers || [b.answer]);
           userDisplay.push(`空${b.position}: ${ua || '未作答'}`);
           correctDisplay.push(`空${b.position}: ${acceptable.join(' 或 ')}`);
           const blankCorrect = acceptable.some(a => normalizeAnswer(ua) === normalizeAnswer(a));
@@ -562,6 +562,17 @@ function gradeExam() {
 }
 
 function normalizeAnswer(s) { return String(s).replace(/\s+/g, '').toLowerCase(); }
+
+// 将 acceptable_answers 数组中的每个条目按 | 拆分为多个选项
+// 例如: ["a|b", "c"] → ["a", "b", "c"]
+function expandAcceptableAnswers(arr) {
+  const result = [];
+  for (const a of arr) {
+    const parts = String(a).split('|').map(s => s.trim()).filter(Boolean);
+    for (const p of parts) result.push(p);
+  }
+  return result;
+}
 
 // ====== 显示成绩 ======
 function showResult() {
@@ -761,11 +772,13 @@ function launchFireworks() {
   // 第二阶段标记
   let phase2Started = false;
   const PHASE1_DURATION = 3500; // 3.5秒烟花
+  // 渐隐流程只触发一次
+  let fadeOutStarted = false;
 
   function animate(now) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    const elapsed = now - particles[0]?.born || 0;
+    const elapsed = now - (particles[0]?.born || now);
 
     // 进入第二阶段：汇聚成GOOD
     if (elapsed > PHASE1_DURATION && !phase2Started) {
@@ -861,12 +874,15 @@ function launchFireworks() {
       }
       ctx.restore();
 
-      // 渐隐canvas
-      if (glowAlpha >= 0.7) {
+      // 渐隐canvas — 只触发一次
+      if (glowAlpha >= 0.7 && !fadeOutStarted) {
+        fadeOutStarted = true;
         setTimeout(() => {
-          canvas.style.transition = 'opacity 2s';
-          canvas.style.opacity = '0';
-          setTimeout(() => canvas.remove(), 2000);
+          if (canvas.parentNode) {
+            canvas.style.transition = 'opacity 2s';
+            canvas.style.opacity = '0';
+            setTimeout(() => canvas.remove(), 2000);
+          }
         }, 1500);
       }
     }
