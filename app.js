@@ -760,6 +760,7 @@ function launchFireworks() {
 
   // 第二阶段标记
   let phase2Started = false;
+  let fadeScheduled = false; // 防止重复设置渐隐定时器
   const PHASE1_DURATION = 3500; // 3.5秒烟花
 
   function animate(now) {
@@ -861,8 +862,9 @@ function launchFireworks() {
       }
       ctx.restore();
 
-      // 渐隐canvas
-      if (glowAlpha >= 0.7) {
+      // 渐隐canvas（只调度一次，避免rAF每帧重复创建大量定时器）
+      if (glowAlpha >= 0.7 && !fadeScheduled) {
+        fadeScheduled = true;
         setTimeout(() => {
           canvas.style.transition = 'opacity 2s';
           canvas.style.opacity = '0';
@@ -1032,9 +1034,14 @@ function saveWrongQuestions(wrongQs) {
   } catch (e) {}
 }
 
-// 加载错题
+// 加载错题（优先按当前登录学生查找，避免跨用户混淆）
 function loadWrongQuestions() {
-  const key = localStorage.getItem('exam_last_wrong_key');
+  let key = null;
+  if (currentStudent && currentStudent.stuid && currentStudent.name) {
+    key = 'exam_wrong_questions_' + currentStudent.stuid + '_' + currentStudent.name;
+  } else {
+    key = localStorage.getItem('exam_last_wrong_key');
+  }
   if (!key) return [];
   try {
     const data = localStorage.getItem(key);
@@ -1186,11 +1193,16 @@ function jumpToWrongQuestion(targetPage) {
   updateWrongPageIndicator();
 }
 
-// 清空错题本
+// 清空错题本（优先按当前登录学生查找，避免跨用户误删）
 function clearWrongQuestions() {
   if (wrongReviewState.questions.length === 0) return;
   if (!confirm('确定要清空错题本吗？此操作不可恢复。')) return;
-  var key = localStorage.getItem('exam_last_wrong_key');
+  var key = null;
+  if (currentStudent && currentStudent.stuid && currentStudent.name) {
+    key = 'exam_wrong_questions_' + currentStudent.stuid + '_' + currentStudent.name;
+  } else {
+    key = localStorage.getItem('exam_last_wrong_key');
+  }
   if (key) localStorage.removeItem(key);
   wrongReviewState = { questions: [], currentPage: 0 };
   closeWrongReview();
