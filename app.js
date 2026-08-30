@@ -462,6 +462,10 @@ function autoSubmit() { clearInterval(examState.timerInterval); examState.submit
 
 // ====== 判卷 ======
 function gradeExam() {
+  // 幂等守卫：防止"确认提交"与"倒计时自动交卷"的竞态导致重复判卷
+  // （重复执行会造成成绩记录重复写入、错题覆盖、动画重复启动与烟花 rAF 泄漏）
+  if (examState.graded) return;
+
   const types = ['ai_danxuan', 'c_danxuan', 'c_tiankong', 'c_prog_read', 'c_prog_fill'];
   const typeScores = {};
   const typeMax = {};
