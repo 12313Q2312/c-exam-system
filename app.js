@@ -80,6 +80,13 @@ function switchScreen(showId) {
 
 // ====== 开始考试 ======
 function startExam() {
+  // 防御性校验：必须登录才能开始考试
+  if (!currentStudent || !currentStudent.stuid || !currentStudent.name) {
+    switchScreen('login-screen');
+    const err = document.getElementById('login-error');
+    if (err) { err.textContent = '请先登录再开始考试'; }
+    return;
+  }
   const qs = [];
   let idx = 0;
 
@@ -1032,10 +1039,10 @@ function saveWrongQuestions(wrongQs) {
   } catch (e) {}
 }
 
-// 加载错题
+// 加载错题 — 始终基于当前考生身份构造键，防止跨考生数据泄露
 function loadWrongQuestions() {
-  const key = localStorage.getItem('exam_last_wrong_key');
-  if (!key) return [];
+  if (!currentStudent || !currentStudent.stuid) return [];
+  const key = 'exam_wrong_questions_' + currentStudent.stuid + '_' + currentStudent.name;
   try {
     const data = localStorage.getItem(key);
     return data ? JSON.parse(data) : [];
@@ -1044,8 +1051,13 @@ function loadWrongQuestions() {
   }
 }
 
-// 打开错题本
+// 打开错题本 — 未登录用户禁止访问，防止绕过登录进入其他屏幕
 function openWrongReview() {
+  if (!currentStudent || !currentStudent.stuid) {
+    const err = document.getElementById('login-error');
+    if (err) { err.textContent = '请先登录再查看错题本'; }
+    return;
+  }
   const wrongQs = loadWrongQuestions();
   if (!wrongQs || wrongQs.length === 0) {
     wrongReviewState = { questions: [], currentPage: 0 };
@@ -1186,12 +1198,16 @@ function jumpToWrongQuestion(targetPage) {
   updateWrongPageIndicator();
 }
 
-// 清空错题本
+// 清空错题本 — 基于当前考生身份构造键，防止误删其他考生数据
 function clearWrongQuestions() {
   if (wrongReviewState.questions.length === 0) return;
+  if (!currentStudent || !currentStudent.stuid) return;
   if (!confirm('确定要清空错题本吗？此操作不可恢复。')) return;
-  var key = localStorage.getItem('exam_last_wrong_key');
-  if (key) localStorage.removeItem(key);
+  const key = 'exam_wrong_questions_' + currentStudent.stuid + '_' + currentStudent.name;
+  localStorage.removeItem(key);
+  // 若全局 last_key 正指向该考生，则一并清理引用
+  const lastKey = localStorage.getItem('exam_last_wrong_key');
+  if (lastKey === key) localStorage.removeItem('exam_last_wrong_key');
   wrongReviewState = { questions: [], currentPage: 0 };
   closeWrongReview();
 }
