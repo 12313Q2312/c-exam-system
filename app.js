@@ -760,6 +760,8 @@ function launchFireworks() {
 
   // 第二阶段标记
   let phase2Started = false;
+  let endScheduled = false;   // 是否已安排收尾（渐隐 + 移除）
+  let loopDone = false;       // 动画循环是否已停止
   const PHASE1_DURATION = 3500; // 3.5秒烟花
 
   function animate(now) {
@@ -830,12 +832,15 @@ function launchFireworks() {
         p.x = p.startX + (p.target.x - p.startX) * eased;
         p.y = p.startY + (p.target.y - p.startY) * eased;
 
-        const alpha = progress < 0.9 ? 0.9 : 0.9 * (1 - (progress - 0.9) / 0.1);
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-        ctx.fillStyle = `hsla(${p.hue},100%,65%,${Math.max(0, alpha)})`;
-        ctx.fill();
-        aliveCount++;
+        // 汇聚完成后粒子已完全透明，不再计入存活，使动画能够结束
+        if (progress < 1) {
+          const alpha = progress < 0.9 ? 0.9 : 0.9 * (1 - (progress - 0.9) / 0.1);
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+          ctx.fillStyle = `hsla(${p.hue},100%,65%,${Math.max(0, alpha)})`;
+          ctx.fill();
+          aliveCount++;
+        }
       }
     });
 
@@ -861,9 +866,11 @@ function launchFireworks() {
       }
       ctx.restore();
 
-      // 渐隐canvas
-      if (glowAlpha >= 0.7) {
+      // 渐隐canvas（只安排一次；收尾后停止动画循环，避免无限运行）
+      if (glowAlpha >= 0.7 && !endScheduled) {
+        endScheduled = true;
         setTimeout(() => {
+          loopDone = true;
           canvas.style.transition = 'opacity 2s';
           canvas.style.opacity = '0';
           setTimeout(() => canvas.remove(), 2000);
@@ -871,10 +878,8 @@ function launchFireworks() {
       }
     }
 
-    if (aliveCount > 0 || !phase2Started) {
+    if (!loopDone) {
       requestAnimationFrame(animate);
-    } else {
-      canvas.remove();
     }
   }
 
