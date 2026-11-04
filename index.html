@@ -32,7 +32,7 @@
       <span class="title-sub">考试模拟系统</span>
     </h1>
 
-    <div class="login-card">
+    <form class="login-card" id="login-form">
       <h3>👤 考生信息</h3>
       <div class="login-fields">
         <div class="login-field">
@@ -44,12 +44,12 @@
           <input type="text" id="input-stuid" placeholder="请输入你的学号" autocomplete="off" maxlength="20">
         </div>
       </div>
-      <p class="login-error" id="login-error"></p>
-      <button class="glow-btn" onclick="confirmLogin()">
-        <span>开始考试</span>
+      <p class="login-error" id="login-error" role="alert"></p>
+      <button class="glow-btn" type="submit">
+        <span>查看考试说明</span>
         <svg width="24" height="24" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" fill="currentColor"/></svg>
       </button>
-    </div>
+    </form>
   </div>
 </div>
 
