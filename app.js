@@ -46,6 +46,25 @@ function switchScreen(showId) {
   el.style.animation = 'fadeScaleIn 0.4s ease';
 }
 
+// ====== 考生信息 ======
+function confirmLogin(event) {
+  event.preventDefault();
+  const name = document.getElementById('input-name');
+  const studentId = document.getElementById('input-stuid');
+  const error = document.getElementById('login-error');
+  const missing = !name.value.trim() ? name : !studentId.value.trim() ? studentId : null;
+  if (missing) {
+    error.textContent = missing === name ? '请输入姓名' : '请输入学号';
+    missing.focus();
+    return;
+  }
+  error.textContent = '';
+  switchScreen('home-screen');
+  document.getElementById('btn-start').focus();
+}
+
+document.getElementById('login-form').addEventListener('submit', confirmLogin);
+
 // ====== 开始考试 ======
 function startExam() {
   const qs = [];
