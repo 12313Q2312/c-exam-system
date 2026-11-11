@@ -1,1 +1,16 @@
+# Installed dependencies; keep package.json and package-lock.json.
+node_modules/
+# npm download cache and local Python/OS state.
 .npm-cache/
+__pycache__/
+*.py[cod]
+.DS_Store
+Thumbs.db
+# ngrok session logs (ngrok_log.txt, ngrok_log2.txt, and the same prefix).
+/ngrok_log*.txt
+/localtunnel_test.txt
+# Launcher that calls a machine-local ngrok.exe. Keep 启动服务器.bat.
+/启动ngrok.bat
+# cloudflared binaries. The previously tracked cloudflared.exe was empty.
+/cloudflared
+/cloudflared.exe
