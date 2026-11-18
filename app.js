@@ -718,6 +718,40 @@ function restartExam() {
   switchScreen('home-screen');
 }
 
+// 排行榜只展示本次成绩。master 不把历史写入 localStorage。
+function showLeaderboard() {
+  const tbody = document.getElementById('leaderboard-body');
+  const emptyEl = document.getElementById('leaderboard-empty');
+  const modal = document.getElementById('leaderboard-modal');
+  if (!tbody || !emptyEl || !modal) return;
+
+  const graded = examState && examState.graded && Number.isFinite(examState.totalScore);
+  if (!graded) {
+    tbody.innerHTML = '';
+    emptyEl.style.display = 'block';
+  } else {
+    emptyEl.style.display = 'none';
+    const name = (document.getElementById('input-name')?.value || '').trim() || '考生';
+    const stuid = (document.getElementById('input-stuid')?.value || '').trim();
+    const when = new Date().toLocaleString('zh-CN', {
+      month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'
+    });
+    tbody.innerHTML = `<tr class="current-student">
+      <td><span class="rank-badge">1</span></td>
+      <td>${escapeHtml(name)}</td>
+      <td>${escapeHtml(stuid)}</td>
+      <td><strong>${examState.totalScore}</strong></td>
+      <td>${escapeHtml(when)}</td>
+    </tr>`;
+  }
+  modal.classList.add('show');
+}
+
+function closeLeaderboard() {
+  const modal = document.getElementById('leaderboard-modal');
+  if (modal) modal.classList.remove('show');
+}
+
 // ====== 键盘快捷键 ======
 document.addEventListener('keydown', function(e) {
   if (!document.getElementById('exam-screen').classList.contains('active')) return;
