@@ -492,7 +492,7 @@ body {
 .page-dot.answered { background:rgba(0,229,255,0.35); }
 
 /* ====== 成绩屏 ====== */
-#result-screen { align-items:center; justify-content:center; padding:40px 20px; overflow-y:auto; }
+#result-screen { align-items:center; justify-content:center; justify-content:safe center; padding:40px 20px; overflow-y:auto; }
 
 .result-content {
   max-width:800px; width:100%;
